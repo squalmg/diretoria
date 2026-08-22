@@ -6,6 +6,8 @@ on:
       - 'packages/db/migrations/**'
       - 'packages/db/src/club-checkout.ts'
       - 'scripts/integration-club-checkout.ts'
+      - 'supabase/functions/diretoria-member-api/**'
+      - 'apps/public-hml/club.*'
       - '.github/workflows/club-checkout.yml'
   workflow_dispatch:
 
@@ -37,8 +39,15 @@ jobs:
       - name: Static contract checks
         run: |
           node --check packages/db/src/club-checkout.ts
+          node --check apps/public-hml/club.js
           grep -q "provider: 'unconfigured'" packages/db/src/club-checkout.ts
           grep -q "paymentEnabled: false" packages/db/src/club-checkout.ts
+          grep -q "paymentEnabled: false" supabase/functions/diretoria-member-api/index.ts
+          grep -q "pagamento desabilitado" apps/public-hml/club.js
+          if grep -Eqi "stripe|mercadopago|asaas|pagarme|paymentintent|client_secret|pix.*qr|card.?number" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
+            echo "A real payment provider/capability was introduced before gateway selection."
+            exit 1
+          fi
       - name: Apply migrations from zero
         env:
           PGPASSWORD: ci_only_password
