@@ -36,6 +36,15 @@ jobs:
           node-version: '24.19.0'
       - name: Install runtime dependencies
         run: npm install --no-audit --no-fund
+      - name: Public member UI static checks
+        run: |
+          node --check apps/public-hml/account.js
+          grep -q "SUPABASE_PUBLISHABLE" apps/public-hml/account.js
+          grep -q "ticketsImplemented" apps/public-hml/account.js
+          if grep -Eqi "checkout|pix|credit.card|gateway.*production|payment.*production" apps/public-hml/account.html apps/public-hml/account.js; then
+            echo "Real checkout/payment language is not allowed in this auth-only slice."
+            exit 1
+          fi
       - name: Apply migrations from zero
         env:
           PGPASSWORD: ci_only_password
