@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const htmlFiles=['apps/hml/index.html','apps/hml/writes.html','apps/public-hml/index.html'];
+const htmlFiles=['apps/hml/index.html','apps/hml/writes.html','apps/hml/crm.html','apps/public-hml/index.html'];
 const temp=mkdtempSync(join(tmpdir(),'diretoria-hml-check-'));
 const targets=new Set();
 let checked=0;
