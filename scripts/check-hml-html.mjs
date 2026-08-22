@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const htmlFiles=['apps/hml/index.html','apps/hml/writes.html'];
+const htmlFiles=['apps/hml/index.html','apps/hml/writes.html','apps/public-hml/index.html'];
 const temp=mkdtempSync(join(tmpdir(),'diretoria-hml-check-'));
 const targets=new Set();
 let checked=0;
@@ -23,7 +23,7 @@ try{
       const tag=match[0];
       const src=/\bsrc=["']([^"']+)["']/i.exec(tag)?.[1];
       if(src){
-        if(src.startsWith('/')&&!src.startsWith('//'))targets.add(join('apps/hml',src.slice(1)));
+        if(src.startsWith('/')&&!src.startsWith('//'))targets.add(join(dirname(file),src.slice(1)));
         else if(!/^https?:\/\//i.test(src))targets.add(join(dirname(file),src));
       }else if(match[1].trim())checkJs(match[1],file);
     }
