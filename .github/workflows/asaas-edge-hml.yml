@@ -1,0 +1,29 @@
+name: asaas-edge-hml
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/diretoria-member-api/**'
+      - 'supabase/functions/diretoria-asaas-webhook/**'
+      - 'scripts/check-asaas-edge-hml.mjs'
+      - '.github/workflows/asaas-edge-hml.yml'
+  workflow_dispatch:
+
+jobs:
+  asaas-edge-hml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Syntax checks
+        run: |
+          node --check supabase/functions/diretoria-member-api/index.ts
+          node --check supabase/functions/diretoria-asaas-webhook/index.ts
+          node --check scripts/check-asaas-edge-hml.mjs
+      - name: Asaas edge safety contract
+        run: node scripts/check-asaas-edge-hml.mjs
+      - name: Assert no secrets committed
+        run: node scripts/check-secrets.mjs

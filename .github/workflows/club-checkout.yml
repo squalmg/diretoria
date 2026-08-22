@@ -41,11 +41,15 @@ jobs:
           node --check packages/db/src/club-checkout.ts
           node --check apps/public-hml/club.js
           grep -q "provider: 'unconfigured'" packages/db/src/club-checkout.ts
-          grep -q "paymentEnabled: false" packages/db/src/club-checkout.ts
-          grep -q "paymentEnabled: false" supabase/functions/diretoria-member-api/index.ts
-          grep -q "pagamento desabilitado" apps/public-hml/club.js
-          if grep -Eqi "stripe|mercadopago|asaas|pagarme|paymentintent|client_secret|pix.*qr|card.?number" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
-            echo "A real payment provider/capability was introduced before gateway selection."
+          grep -q "checkoutProvider: configured ? 'asaas-sandbox' : 'asaas-sandbox-unconfigured'" supabase/functions/diretoria-member-api/index.ts
+          grep -q "PAYMENT_PROVIDER_UNCONFIGURED" supabase/functions/diretoria-member-api/index.ts
+          grep -q "quoteAsaasPassThrough" supabase/functions/diretoria-member-api/index.ts
+          if grep -Eqi "stripe|mercadopago|pagarme|paymentintent|client_secret|card.?number|security.?code|cvv" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
+            echo "Forbidden payment capability or card-data handling found in Club flow."
+            exit 1
+          fi
+          if grep -Eq "ASAAS_ACCESS_TOKEN=['\"]|ASAAS_WEBHOOK_AUTH_TOKEN=['\"]" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
+            echo "Asaas secret literal found in source."
             exit 1
           fi
       - name: Apply migrations from zero
@@ -59,7 +63,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
         run: node --experimental-strip-types scripts/integration-club-checkout.ts
-      - name: Assert no direct payment FK from checkout intents
+      - name: Assert checkout intent remains separate from payment
         env:
           PGPASSWORD: ci_only_password
         run: |
