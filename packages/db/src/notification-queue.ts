@@ -223,9 +223,9 @@ export class PostgresNotificationQueue {
       );
       const notificationStatus: NotificationStatus = input.status === 'delivered' ? 'delivered' : input.status === 'sent' ? 'sent' : input.status === 'failed' ? 'failed' : 'sending';
       await client.query(
-        `update notifications set status=$2,
-          sent_at=case when $2 in ('sent','delivered') then coalesce(sent_at,now()) else sent_at end,
-          delivered_at=case when $2='delivered' then coalesce(delivered_at,now()) else delivered_at end
+        `update notifications set status=$2::varchar,
+          sent_at=case when $2::varchar in ('sent','delivered') then coalesce(sent_at,now()) else sent_at end,
+          delivered_at=case when $2::varchar='delivered' then coalesce(delivered_at,now()) else delivered_at end
          where id=$1`,
         [input.notificationId, notificationStatus],
       );
