@@ -82,10 +82,25 @@ try {
   const firstStored = await core.getIntent(subject, first.id);
   assert(String(firstStored.amount_gross) === '150.00', 'old intent snapshot must remain unchanged');
 
-  await pool.query(`update events set status='PLANEJAMENTO' where id=$1`, [eventId]);
+  // Cenário bloqueado usa uma segunda edição que nasce legitimamente em PLANEJAMENTO.
+  // Não enfraquecemos o trigger tentando reverter FORMACAO -> PLANEJAMENTO.
+  const blockedEvent = await pool.query(
+    `insert into events(event_code,name,slug,status,capacity,created_by)
+     values ($1,'Club Checkout Bloqueado',$2,'PLANEJAMENTO',700,$3) returning id`,
+    [`DIR-CHK-BLOCK-${suffix}`, `club-checkout-blocked-${suffix}`, operatorId],
+  );
+  const blockedEventId = blockedEvent.rows[0].id;
+  await pool.query(
+    `insert into event_financial_configs(
+      event_id,version,founder_ticket_gross,estimated_fee_per_member,variable_cost_per_member,
+      contingency_type,contingency_value,approved_exposure_limit,created_by
+     ) values ($1,1,175.00,5.00,5.00,'percentage',15.00,0.00,$2)`,
+    [blockedEventId, operatorId],
+  );
+
   let blocked = false;
   try {
-    await core.createIntent({ providerSubject: subject, eventId, idempotencyKey: `checkout:${suffix}:blocked` });
+    await core.createIntent({ providerSubject: subject, eventId: blockedEventId, idempotencyKey: `checkout:${suffix}:blocked` });
   } catch (error) {
     blocked = error instanceof Error && error.message === 'CLUB_OFFER_PHASE_BLOCKED';
   }
