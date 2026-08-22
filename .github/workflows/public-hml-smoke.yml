@@ -1,0 +1,38 @@
+name: public-hml-smoke
+
+on:
+  push:
+    paths:
+      - '.github/smoke/public-hml-v1'
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Health and state
+        run: |
+          set -euo pipefail
+          BASE='https://heckakjcpwomoucobtau.supabase.co/functions/v1/diretoria-public-api'
+          curl --fail --silent --show-error "$BASE/health" | tee /tmp/health.json
+          curl --fail --silent --show-error "$BASE/state" | tee /tmp/state.json
+          node -e "const h=require('/tmp/health.json'); if(!h.ok||h.database!=='connected') process.exit(1)"
+          node -e "const s=require('/tmp/state.json'); if(!s.ok) process.exit(1)"
+      - name: Capture one synthetic lead
+        run: |
+          set -euo pipefail
+          BASE='https://heckakjcpwomoucobtau.supabase.co/functions/v1/diretoria-public-api'
+          suffix=$(printf '%08d' $((GITHUB_RUN_ID % 100000000)))
+          email="public-smoke-${GITHUB_RUN_ID}@example.invalid"
+          phone="+55649${suffix}"
+          body=$(node -e "console.log(JSON.stringify({fullName:'Public Smoke HML',phone:process.argv[1],email:process.argv[2],privacyConsent:true,whatsappConsent:true,emailConsent:false,marketingConsent:true,utmSource:'github_smoke',utmMedium:'ci',utmCampaign:'public_hml_v1',utmContent:'workflow',referralCode:'SMOKE-V1',landingPage:'/?utm_source=github_smoke',sessionKey:'gh-'+process.env.GITHUB_RUN_ID}))" "$phone" "$email")
+          status=$(curl --silent --show-error --output /tmp/lead.json --write-out '%{http_code}' \
+            -X POST "$BASE/leads" \
+            -H 'Origin: https://diretoria-public-hml.vercel.app' \
+            -H 'Content-Type: application/json' \
+            --data "$body")
+          cat /tmp/lead.json
+          test "$status" = "202"
+          node -e "const r=require('/tmp/lead.json'); if(!r.ok||!r.accepted||!r.requestId) process.exit(1)"
+          echo "SMOKE_EMAIL=$email"
+          echo "SMOKE_PHONE=$phone"

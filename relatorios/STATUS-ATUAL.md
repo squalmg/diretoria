@@ -2,7 +2,7 @@
 
 **Data:** 22/08/2026  
 **Fase:** Incremento 2 — Reativação e Aquisição  
-**Estado:** **NÚCLEO DE AQUISIÇÃO/CRM HOMOLOGADO; PRÓXIMO SLICE É API PÚBLICA + LISTA DE ESPERA**
+**Estado:** **API PÚBLICA + LISTA DE ESPERA HML HOMOLOGADAS; PRÓXIMO SLICE É CRM ADMIN + ANALYTICS**
 
 ## Repositório
 
@@ -11,125 +11,165 @@
 - HML-G0: **APROVADO**;
 - core econômico transacional: **APROVADO**;
 - Admin HML econômico: **APROVADO e publicado**;
-- PR #8: fundação P0 de aquisição, consentimento e CRM com CI verde e migration aplicada em HML.
+- núcleo aquisição/CRM: **APROVADO**;
+- PR #9: API pública + Home/Lista de Espera HML com CI, deploy e smoke HTTP aprovados.
 
-## HML persistente
+## HML administrativo
 
-### Aplicação
-
-- Vercel project: `diretoria-hml`;
-- URL: `https://diretoria-hml.vercel.app`;
-- deployment econômico validado: `dpl_CkPLersGhaZar4hsMHrmGy22dxxJ`;
-- `/`, `/writes.html`, `/writes.js` e `/api/edge-health`: HTTP 200.
-
-### Banco / API
-
-- Supabase project: `diretoria-hml`;
-- project ref: `heckakjcpwomoucobtau`;
+- Vercel: `https://diretoria-hml.vercel.app`;
+- Supabase project/ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
-- estado: `ACTIVE_HEALTHY`;
-- migrations aplicadas: `0001` a `0015`;
-- RLS default-deny mantido nas novas tabelas;
-- advisors de segurança: sem ERROR/WARN novo;
-- advisors de performance: somente INFO `unused_index`, esperado sem tráfego público.
+- Edge `diretoria-admin-api`: ACTIVE;
+- Edge `diretoria-admin-write-api`: ACTIVE.
 
-## Incremento 1 — estado consolidado
+## HML público de reativação
 
-O núcleo econômico está implementado, integrado ao PostgreSQL real, exposto no Admin HML e protegido por sessão temporária. O smoke de clique manual pela interface continua como gate de homologação antes de qualquer promoção produtiva, mas não bloqueia o desenvolvimento isolado do Incremento 2.
+### Vercel
 
-Regras centrais continuam válidas:
+- projeto: `diretoria-public-hml`;
+- project id: `prj_2TBT4bKM9SmIj9Txx2CZP7Vuud7Y`;
+- URL: `https://diretoria-public-hml.vercel.app`;
+- deployment validado: `dpl_2424GGAYCX3py1n2ibF8z8YLws8v`;
+- `/`: HTTP 200;
+- `/app.js`: HTTP 200;
+- `/api/health`: HTTP 200.
 
-- `pending` não aumenta quórum;
-- bar esperado não financia viabilidade;
-- `VIAVEL != CONFIRMADO`;
-- reembolso reduz proteção;
-- confirmação exige snapshot atual + configuração + checklist + GO atual.
+### Supabase
 
-## Incremento 2 — concluído neste slice
+- migration aplicada até `0016_public_lead_rate_limit`;
+- Edge `diretoria-public-api`: ACTIVE;
+- `/health`: banco conectado;
+- rate limit: 5 capturas / 600 s por chave hash;
+- RLS default-deny mantido;
+- advisors: sem novo ERROR/WARN de segurança; somente INFO esperados.
 
-### Banco
+## Fronteira pública implementada
 
-Criadas as entidades:
+Rotas:
 
-- `consents`;
-- `acquisition_attributions`;
-- `crm_stage_history`;
-- `crm_interactions`;
-- `analytics_events`;
-- `assets`;
-- `asset_tags`.
+- `GET /health`;
+- `GET /state`;
+- `POST /leads`.
 
-### Captura transacional
+Proteções:
 
-`PostgresAcquisitionCore` implementa:
+1. CORS limitado ao HML público e localhost;
+2. payload máximo;
+3. honeypot;
+4. rate limit transacional;
+5. chave de rate limit armazenada apenas como hash;
+6. política HML definida no servidor;
+7. consentimento de privacidade obrigatório;
+8. telefone brasileiro normalizado para E.164;
+9. resposta pública não revela `profile_id` nem se a pessoa já existia;
+10. perfil bloqueado não pode ser enumerado pela resposta;
+11. Edge chama o `PostgresAcquisitionCore` canônico;
+12. PostgREST não é exposto como fronteira pública de escrita.
 
-1. normalização de e-mail;
-2. telefone E.164;
-3. exigência de pelo menos um contato;
-4. consentimento de privacidade obrigatório;
-5. locks transacionais por identidade;
-6. criação ou consolidação de `profile/customer_id`;
-7. bloqueio de colisão quando e-mail e telefone resolvem para perfis diferentes;
-8. registro de UTM/referral/landing/session;
-9. histórico explícito de consentimentos concedidos e negados;
-10. estágio CRM `lead` sem regredir `member/participant`;
-11. interação de captura no CRM;
-12. evento analítico `lead_created`;
-13. audit log `lead.captured`.
+## Home/Lista de Espera HML
 
-## Evidência automatizada mais recente
+A Home pública HML:
 
-GitHub Actions run:
+- adapta o texto ao estado da edição via `/state`;
+- mostra progresso de quórum sem expor valores financeiros sensíveis;
+- captura nome, WhatsApp e e-mail;
+- exige consentimento de privacidade;
+- separa opt-in WhatsApp/e-mail;
+- captura UTM, referral e session key;
+- usa GSAP apenas na apresentação;
+- está explicitamente marcada como HML para impedir uso inadvertido de dados reais;
+- ainda não possui pixels externos, checkout ou ingresso real.
 
-`32566983116`
+## Evidência automatizada
 
-Resultado:
+### CI principal
 
-- testes de domínio: PASS;
-- secret scan: PASS;
-- migrations `0001–0015`: PASS;
-- hardening/RLS: PASS;
-- bootstrap/sessão HML: PASS;
-- núcleo econômico: PASS;
-- **acquisition/CRM integration: PASS**;
-- backup/restore incluindo consentimentos: PASS.
+Run `32567366490`: PASS completo.
 
-Cenários de aquisição provados:
+Inclui:
 
-- novo lead cria profile + atribuição + consentimentos + CRM + analytics;
-- repetição do mesmo e-mail/telefone consolida no mesmo `customer_id`;
-- captura posterior de pessoa já `member` não regride para `lead`;
-- e-mail de um perfil + telefone de outro retorna `IDENTITY_COLLISION` e faz rollback;
-- sem consentimento de privacidade, nenhum profile é criado;
-- opt-in e opt-out são persistidos explicitamente.
+- domínio;
+- migrations;
+- HML JS;
+- econômico;
+- aquisição/CRM;
+- backup/restore.
 
-Relatório:
+### CI da fronteira pública
 
-`relatorios/2026-08-22-INCREMENTO-2-AQUISICAO-CORE.md`
+Run `32567366492`: PASS completo.
 
-## Ainda fora deste slice
+Valida:
 
-- endpoint público de captura;
-- home reativa;
-- lista de espera publicada;
-- painel CRM navegável;
-- pixels externos;
-- upload/gestão visual do acervo;
-- comunicação automática.
+- migrations do zero;
+- RLS do rate limit;
+- SECURITY DEFINER;
+- `search_path` fixo;
+- 3 requisições permitidas e 4ª bloqueada no cenário de teste.
+
+### Smoke HTTP real
+
+Run `32567590292`: **SUCCESS**.
+
+Fluxo real executado contra a Edge Function HML:
+
+`GitHub Actions → POST /leads → Edge API → PostgresAcquisitionCore → Supabase HML`
+
+Lead sintético criado:
+
+- nome: `Public Smoke HML`;
+- e-mail: `public-smoke-32567590292@example.invalid`;
+- telefone normalizado: `+5564967590292`.
+
+Validação no banco do mesmo `profile_id`:
+
+- 4 consentimentos;
+- 1 atribuição;
+- 1 estágio CRM (`lead`);
+- 1 interação (`lead_capture`);
+- 1 analytics (`lead_created`);
+- 1 audit log (`lead.captured`).
+
+Consentimentos do smoke:
+
+- privacy: true;
+- marketing: true;
+- WhatsApp: true;
+- e-mail: false;
+- policy version: `privacy-hml-2026-08-v1`.
+
+Atribuição do smoke:
+
+- source: `github_smoke`;
+- medium: `ci`;
+- campaign: `public_hml_v1`;
+- content: `workflow`;
+- referral: `SMOKE-V1`.
+
+## Ainda necessário antes do primeiro anúncio real
+
+1. painel CRM navegável;
+2. definição/validação da política jurídica e textos finais de consentimento;
+3. marca/acervo final para a campanha;
+4. pixels/analytics externos condicionados ao consentimento adequado;
+5. monitoramento operacional da captura pública;
+6. campanhas e criativos finais;
+7. domínio público definitivo.
+
+Nenhum anúncio real deve ser liberado apenas porque o HML já captura leads.
 
 ## Próximo passo
 
-# API pública de lead + Home/Lista de Espera HML
+# CRM Admin + Analytics/Atribuição
 
-Fluxo:
+Prioridade:
 
-`Visitante → formulário → API pública controlada → PostgresAcquisitionCore → profile único + consent + attribution + CRM + analytics`
-
-Depois:
-
-1. painel CRM básico;
-2. analytics/pixels com consentimento;
-3. acervo básico;
-4. gate `PRONTO PARA PRIMEIRO ANÚNCIO`.
+1. lista/funil CRM;
+2. perfil 360 do lead;
+3. filtros por origem/campanha/consentimento;
+4. dashboard básico de aquisição;
+5. acervo inicial;
+6. estratégia de pixels externos e consent mode;
+7. fechar gate `PRONTO PARA PRIMEIRO ANÚNCIO`.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**

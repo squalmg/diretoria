@@ -3,9 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": {
-    "node": ">=22.16.0"
-  },
+  "engines": { "node": ">=22.16.0" },
   "scripts": {
     "test": "node scripts/run-tests.mjs",
     "check": "npm run test && npm run secrets:check && npm run migrations:check && npm run docs:check && npm run hml:check",
@@ -15,13 +13,12 @@
     "hml:check": "node scripts/check-hml-html.mjs",
     "integration:economic-core": "node --experimental-strip-types scripts/integration-economic-core.ts",
     "integration:acquisition-core": "node --experimental-strip-types scripts/integration-acquisition-core.ts",
+    "integration:public-lead-rate-limit": "node --experimental-strip-types scripts/integration-public-lead-rate-limit.ts",
     "api": "node --experimental-strip-types apps/api/src/server.ts",
     "admin": "node apps/admin/server.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:migrate:docker": "for f in packages/db/migrations/*.sql; do docker compose exec -T db psql -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f /migrations/$(basename $f) || exit 1; done"
   },
-  "dependencies": {
-    "pg": "8.23.0"
-  }
+  "dependencies": { "pg": "8.23.0" }
 }
