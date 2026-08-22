@@ -12,10 +12,14 @@
     "secrets:check": "node scripts/check-secrets.mjs",
     "migrations:check": "node scripts/check-migrations.mjs",
     "docs:check": "node scripts/check-docs.mjs",
+    "integration:economic-core": "node --experimental-strip-types scripts/integration-economic-core.ts",
     "api": "node --experimental-strip-types apps/api/src/server.ts",
     "admin": "node apps/admin/server.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:migrate:docker": "docker compose exec -T db psql -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f /migrations/0001_core_foundation.sql && docker compose exec -T db psql -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f /migrations/0002_seed_rbac.sql"
+    "db:migrate:docker": "for f in packages/db/migrations/*.sql; do docker compose exec -T db psql -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f /migrations/$(basename $f) || exit 1; done"
+  },
+  "dependencies": {
+    "pg": "8.23.0"
   }
 }
