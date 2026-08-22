@@ -2,7 +2,7 @@
 
 **Data:** 22/08/2026  
 **Fase:** Incremento 2 — Reativação e Aquisição  
-**Estado:** **API PÚBLICA + LISTA DE ESPERA HML HOMOLOGADAS; PRÓXIMO SLICE É CRM ADMIN + ANALYTICS**
+**Estado:** **CRM ADMIN HML HOMOLOGADO; PRÓXIMO GATE É ANALYTICS/ACERVO/POLÍTICA PARA PRIMEIRO ANÚNCIO**
 
 ## Repositório
 
@@ -12,164 +12,172 @@
 - core econômico transacional: **APROVADO**;
 - Admin HML econômico: **APROVADO e publicado**;
 - núcleo aquisição/CRM: **APROVADO**;
-- PR #9: API pública + Home/Lista de Espera HML com CI, deploy e smoke HTTP aprovados.
+- API pública + lista de espera HML: **APROVADAS e publicadas**;
+- PR #10: CRM Admin read-only, CI e deploy HML aprovados.
 
 ## HML administrativo
 
-- Vercel: `https://diretoria-hml.vercel.app`;
-- Supabase project/ref: `heckakjcpwomoucobtau`;
-- região: `sa-east-1`;
-- Edge `diretoria-admin-api`: ACTIVE;
-- Edge `diretoria-admin-write-api`: ACTIVE.
-
-## HML público de reativação
-
 ### Vercel
 
-- projeto: `diretoria-public-hml`;
-- project id: `prj_2TBT4bKM9SmIj9Txx2CZP7Vuud7Y`;
-- URL: `https://diretoria-public-hml.vercel.app`;
-- deployment validado: `dpl_2424GGAYCX3py1n2ibF8z8YLws8v`;
+- projeto: `diretoria-hml`;
+- project id: `prj_CSbGzOVsvIkkJLosiemlHmvcG7XV`;
+- URL: `https://diretoria-hml.vercel.app`;
+- deployment final alinhado ao GitHub: `dpl_CTeVMkPpHTKocgnD6up9rSzu2qx3`;
 - `/`: HTTP 200;
-- `/app.js`: HTTP 200;
-- `/api/health`: HTTP 200.
+- `/writes.html`: HTTP 200;
+- `/crm.html`: HTTP 200;
+- `/crm.js`: HTTP 200;
+- `/api/edge-health`: HTTP 200.
+
+O snapshot Vercel foi refeito com os arquivos exatos do branch. A divergência temporária causada por uma versão simplificada da console econômica foi eliminada; não permanece `writes-core.html` ou iframe não versionado no deploy canônico.
 
 ### Supabase
 
-- migration aplicada até `0016_public_lead_rate_limit`;
+- project/ref: `heckakjcpwomoucobtau`;
+- região: `sa-east-1`;
+- Edge `diretoria-admin-api`: ACTIVE;
+- Edge `diretoria-admin-write-api`: ACTIVE;
+- Edge `diretoria-crm-api`: **ACTIVE**;
 - Edge `diretoria-public-api`: ACTIVE;
-- `/health`: banco conectado;
-- rate limit: 5 capturas / 600 s por chave hash;
-- RLS default-deny mantido;
-- advisors: sem novo ERROR/WARN de segurança; somente INFO esperados.
+- migrations aplicadas: `0001–0016`.
 
-## Fronteira pública implementada
+## CRM Admin implementado
 
-Rotas:
+### Backend canônico
 
-- `GET /health`;
-- `GET /state`;
-- `POST /leads`.
+`packages/db/src/crm-read.ts`
 
-Proteções:
+`PostgresCrmRead` fornece:
 
-1. CORS limitado ao HML público e localhost;
-2. payload máximo;
-3. honeypot;
-4. rate limit transacional;
-5. chave de rate limit armazenada apenas como hash;
-6. política HML definida no servidor;
-7. consentimento de privacidade obrigatório;
-8. telefone brasileiro normalizado para E.164;
-9. resposta pública não revela `profile_id` nem se a pessoa já existia;
-10. perfil bloqueado não pode ser enumerado pela resposta;
-11. Edge chama o `PostgresAcquisitionCore` canônico;
-12. PostgREST não é exposto como fronteira pública de escrita.
+1. health do Postgres;
+2. overview de perfis;
+3. contagem 24h/7d;
+4. distribuição por estágio;
+5. origens mais frequentes;
+6. campanhas mais frequentes;
+7. resumo de consentimentos concedidos/negados;
+8. lista paginada de profiles;
+9. busca por nome/e-mail/telefone;
+10. filtros por estágio/origem/campanha;
+11. consentimentos atuais na listagem;
+12. perfil 360.
 
-## Home/Lista de Espera HML
-
-A Home pública HML:
-
-- adapta o texto ao estado da edição via `/state`;
-- mostra progresso de quórum sem expor valores financeiros sensíveis;
-- captura nome, WhatsApp e e-mail;
-- exige consentimento de privacidade;
-- separa opt-in WhatsApp/e-mail;
-- captura UTM, referral e session key;
-- usa GSAP apenas na apresentação;
-- está explicitamente marcada como HML para impedir uso inadvertido de dados reais;
-- ainda não possui pixels externos, checkout ou ingresso real.
-
-## Evidência automatizada
-
-### CI principal
-
-Run `32567366490`: PASS completo.
+### Perfil 360
 
 Inclui:
 
-- domínio;
-- migrations;
-- HML JS;
-- econômico;
-- aquisição/CRM;
-- backup/restore.
+- identidade;
+- lifecycle CRM;
+- histórico de atribuições;
+- histórico de consentimentos;
+- interações;
+- analytics first-party;
+- pagamentos;
+- créditos;
+- auditoria.
 
-### CI da fronteira pública
+O CRM é **read-only** neste slice. Não existe botão/API para mudar manualmente lifecycle ou consentimentos.
 
-Run `32567366492`: PASS completo.
+### Edge API
 
-Valida:
+`diretoria-crm-api`
 
-- migrations do zero;
-- RLS do rate limit;
-- SECURITY DEFINER;
-- `search_path` fixo;
-- 3 requisições permitidas e 4ª bloqueada no cenário de teste.
+Rotas HML protegidas pela mesma sessão temporária do Admin:
 
-### Smoke HTTP real
+- `GET /health`;
+- `GET /overview`;
+- `GET /profiles`;
+- `GET /profiles/:id`.
 
-Run `32567590292`: **SUCCESS**.
+CORS limitado ao Admin HML + localhost.
 
-Fluxo real executado contra a Edge Function HML:
+A função delega as consultas ao `PostgresCrmRead` canônico; SQL de CRM não é duplicado entre teste e runtime.
 
-`GitHub Actions → POST /leads → Edge API → PostgresAcquisitionCore → Supabase HML`
+### Interface
 
-Lead sintético criado:
+`/crm.html` + `/crm.js`
 
-- nome: `Public Smoke HML`;
-- e-mail: `public-smoke-32567590292@example.invalid`;
-- telefone normalizado: `+5564967590292`.
+Recursos:
 
-Validação no banco do mesmo `profile_id`:
+- dashboard de perfis;
+- barras/filtros por estágio;
+- busca;
+- filtro de origem;
+- filtro de campanha;
+- lista de pessoas;
+- chips de consentimento;
+- perfil 360 completo;
+- navegação entre portal/CRM/econômico.
 
-- 4 consentimentos;
-- 1 atribuição;
-- 1 estágio CRM (`lead`);
-- 1 interação (`lead_capture`);
-- 1 analytics (`lead_created`);
-- 1 audit log (`lead.captured`).
+## Evidência automatizada do CRM
 
-Consentimentos do smoke:
+### CRM read
 
-- privacy: true;
-- marketing: true;
-- WhatsApp: true;
-- e-mail: false;
-- policy version: `privacy-hml-2026-08-v1`.
+Run `32567993967`: **SUCCESS**.
 
-Atribuição do smoke:
+Cenário:
 
-- source: `github_smoke`;
-- medium: `ci`;
-- campaign: `public_hml_v1`;
-- content: `workflow`;
-- referral: `SMOKE-V1`.
+`PostgresAcquisitionCore → lead sintético → PostgresCrmRead`
+
+Provado:
+
+- overview;
+- stage `lead`;
+- source/campaign;
+- consentimentos;
+- busca e filtros;
+- perfil 360;
+- interação `lead_capture`;
+- analytics `lead_created`;
+- auditoria `lead.captured`;
+- paginação inválida rejeitada;
+- UUID inválido rejeitado.
+
+### Regressão
+
+- CI geral `32567993932`: SUCCESS;
+- public-leads `32567993965`: SUCCESS.
+
+Portanto o CRM não quebrou núcleo econômico, aquisição, captura pública ou restore.
+
+## HML público de reativação
+
+- Vercel: `https://diretoria-public-hml.vercel.app`;
+- project id: `prj_2TBT4bKM9SmIj9Txx2CZP7Vuud7Y`;
+- Edge `diretoria-public-api`: ACTIVE;
+- smoke HTTP real `32567590292`: SUCCESS;
+- captura pública, consentimentos, atribuição, CRM e analytics confirmados no banco.
 
 ## Ainda necessário antes do primeiro anúncio real
 
-1. painel CRM navegável;
-2. definição/validação da política jurídica e textos finais de consentimento;
-3. marca/acervo final para a campanha;
-4. pixels/analytics externos condicionados ao consentimento adequado;
-5. monitoramento operacional da captura pública;
-6. campanhas e criativos finais;
-7. domínio público definitivo.
-
-Nenhum anúncio real deve ser liberado apenas porque o HML já captura leads.
+1. textos/política jurídica definitivos de privacidade e marketing;
+2. marca e acervo final da campanha;
+3. catalogação dos direitos de uso do acervo histórico;
+4. pixels/analytics externos com consent mode;
+5. IDs reais das plataformas de mídia — não inventar;
+6. monitoramento/alertas da captura pública;
+7. campanhas e criativos finais;
+8. domínio público definitivo.
 
 ## Próximo passo
 
-# CRM Admin + Analytics/Atribuição
+# Gate “PRONTO PARA PRIMEIRO ANÚNCIO”
 
-Prioridade:
+Desenvolvimento que pode continuar sem decisões externas:
 
-1. lista/funil CRM;
-2. perfil 360 do lead;
-3. filtros por origem/campanha/consentimento;
-4. dashboard básico de aquisição;
-5. acervo inicial;
-6. estratégia de pixels externos e consent mode;
-7. fechar gate `PRONTO PARA PRIMEIRO ANÚNCIO`.
+1. catálogo/admin do acervo;
+2. dashboard first-party de aquisição já baseado em `analytics_events`;
+3. monitoramento técnico da captura pública;
+4. camada de consent mode que não carrega pixels sem autorização.
+
+Dependências que deverão ser fornecidas/decididas antes da ativação real:
+
+- política jurídica final;
+- IDs Meta/Google/etc.;
+- domínio público;
+- arquivos/fotos/vídeos finais e respectivos direitos;
+- peças/campanhas finais.
+
+Nenhum primeiro anúncio real deve ser liberado antes dessas dependências e do gate completo.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**
