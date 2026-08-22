@@ -1,157 +1,27 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="robots" content="noindex,nofollow" />
-  <title>Diretoria HML — Console Econômica</title>
-  <style>
-    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f4f4f5;background:#09090b;color-scheme:dark;--muted:#a1a1aa;--line:#29292e;--panel:#111114;--soft:#18181b;--ok:#86efac;--warn:#fde68a;--danger:#fca5a5;--accent:#fafafa}
-    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0%,#1f1f24 0,transparent 30%),#09090b;min-height:100vh}button,input,select,textarea{font:inherit}.shell{width:min(1500px,100%);margin:auto;padding:18px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--line);background:#111114e8;border-radius:16px;position:sticky;top:10px;z-index:10;backdrop-filter:blur(14px)}.brand{display:flex;align-items:center;gap:10px}.badge{font-size:11px;letter-spacing:.08em;padding:5px 8px;border:1px solid #52525b;border-radius:999px;color:var(--warn)}a{color:inherit}.layout{display:grid;grid-template-columns:310px minmax(0,1fr);gap:14px;margin-top:14px}.panel{border:1px solid var(--line);background:var(--panel);border-radius:18px;overflow:hidden}.head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}.body{padding:14px}.events{display:grid;gap:8px}.event{border:1px solid var(--line);background:#0d0d10;border-radius:12px;padding:11px;color:#fff;text-align:left;cursor:pointer}.event.active,.event:hover{background:#1a1a1e;border-color:#52525b}.event strong{display:block}.small{font-size:12px;color:var(--muted);margin-top:4px}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:12px}.metric{border:1px solid var(--line);background:#0d0d10;border-radius:13px;padding:12px}.metric b{font-size:20px;display:block;margin-top:5px}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}details{border:1px solid var(--line);border-radius:14px;background:#0d0d10;overflow:hidden}summary{padding:13px 14px;cursor:pointer;font-weight:700;display:flex;justify-content:space-between}details[open] summary{border-bottom:1px solid var(--line)}.form{display:grid;gap:9px;padding:13px}.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.field{display:grid;gap:5px}.field label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}input,select,textarea{width:100%;border:1px solid #3f3f46;background:#101013;color:#fff;border-radius:10px;padding:10px;outline:none}textarea{min-height:72px;resize:vertical}input:focus,select:focus,textarea:focus{border-color:#71717a}.btn{border:1px solid #3f3f46;background:#27272a;color:#fff;border-radius:10px;padding:9px 11px;cursor:pointer}.btn:hover{background:#3f3f46}.btn.primary{background:#f4f4f5;color:#09090b;border-color:#f4f4f5;font-weight:750}.btn.warn{border-color:#713f12;color:#fde68a}.btn.danger{border-color:#7f1d1d;color:#fca5a5}.message{margin:0 0 12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:13px;white-space:pre-wrap}.message.ok{border-color:#14532d;color:var(--ok)}.message.error{border-color:#7f1d1d;color:var(--danger)}.empty{padding:30px;text-align:center;color:var(--muted)}.hidden{display:none!important}.statusline{font-size:12px;color:var(--muted)}.danger-zone{border-color:#7f1d1d}footer{text-align:center;color:#71717a;font-size:12px;padding:20px}@media(max-width:980px){.layout{grid-template-columns:1fr}.actions{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.top{position:static}}@media(max-width:560px){.shell{padding:10px}.row2,.metrics{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Diretoria HML — Console Econômica</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#f5f5f5;background:#09090b;color-scheme:dark;--muted:#a1a1aa;--line:#2b2b31;--panel:#111114;--ok:#86efac;--warn:#fde68a;--danger:#fca5a5}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#202027 0,transparent 32%),#09090b;min-height:100vh}button,input,select,textarea{font:inherit}.shell{max-width:1500px;margin:auto;padding:16px}.top,.panel{border:1px solid var(--line);background:#111114e8;border-radius:16px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:13px 15px;position:sticky;top:10px;z-index:10;backdrop-filter:blur(14px)}.badge{font-size:11px;letter-spacing:.08em;border:1px solid #52525b;border-radius:999px;padding:5px 8px;color:var(--warn)}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;margin-top:14px}.head{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}.body{padding:14px}.events{display:grid;gap:8px}.event,.btn{border:1px solid #3f3f46;background:#242428;color:#fff;border-radius:10px;padding:9px 11px;cursor:pointer}.event{text-align:left;width:100%;background:#0d0d10}.event:hover,.event.active,.btn:hover{background:#34343a}.event strong{display:block}.btn.primary{background:#f4f4f5;color:#09090b;border-color:#f4f4f5;font-weight:750}.btn.warn{color:var(--warn);border-color:#713f12}.btn.danger{color:var(--danger);border-color:#7f1d1d}.small{font-size:12px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:12px}.metric{border:1px solid var(--line);background:#0d0d10;border-radius:12px;padding:12px}.metric b{display:block;font-size:20px;margin-top:4px}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}details{border:1px solid var(--line);border-radius:13px;background:#0d0d10;overflow:hidden}summary{padding:12px 13px;cursor:pointer;font-weight:700}details[open] summary{border-bottom:1px solid var(--line)}form,.form{display:grid;gap:8px;padding:12px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}label{display:grid;gap:4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}input,select,textarea{width:100%;border:1px solid #3f3f46;background:#101013;color:#fff;border-radius:9px;padding:9px;outline:none}textarea{min-height:70px}.message{margin:0 0 12px;border:1px solid var(--line);border-radius:11px;padding:10px;color:var(--muted);font-size:13px;white-space:pre-wrap}.message.ok{color:var(--ok);border-color:#14532d}.message.error{color:var(--danger);border-color:#7f1d1d}.hidden{display:none!important}.empty{padding:30px;text-align:center;color:var(--muted)}footer{text-align:center;color:#71717a;font-size:12px;padding:20px}a{color:inherit}@media(max-width:950px){.layout{grid-template-columns:1fr}.actions{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.top{position:static}}@media(max-width:540px){.shell{padding:9px}.row,.metrics{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+</style>
 </head>
-<body>
-<div class="shell">
-  <header class="top">
-    <div class="brand"><strong>Diretoria</strong><span class="badge">HML · CONSOLE DE TESTE</span></div>
-    <div class="statusline"><a href="/">← painel read-only</a> · <span id="sessionState">validando sessão…</span></div>
-  </header>
-
-  <main id="blocked" class="panel" style="margin-top:14px"><div class="body empty">Validando sessão HML…</div></main>
-
-  <main id="app" class="layout hidden">
-    <aside class="panel">
-      <div class="head"><div><strong>Edições HML</strong><div class="small">Dados sintéticos / homologação</div></div><button class="btn" id="refresh">Atualizar</button></div>
-      <div class="body">
-        <button class="btn primary" id="newEvent" style="width:100%;margin-bottom:12px">+ Nova edição HML</button>
-        <div id="events" class="events"><div class="empty">Carregando…</div></div>
-      </div>
-    </aside>
-
-    <section class="panel">
-      <div class="head"><div><strong id="title">Console econômica</strong><div class="small" id="subtitle">Selecione ou crie uma edição.</div></div><button class="btn" id="recalc">Recalcular</button></div>
-      <div class="body">
-        <div id="message" class="message">Nenhuma ação aplicada.</div>
-        <div id="metrics" class="metrics hidden"></div>
-        <div id="actions" class="actions hidden">
-          <details open>
-            <summary>1. Fase da edição <span>›</span></summary>
-            <div class="form">
-              <div class="message">Transição sempre sequencial. Não existe botão “marcar como VIÁVEL” ou “CONFIRMADO”.</div>
-              <button class="btn primary" id="advance">Avançar para próxima fase permitida</button>
-            </div>
-          </details>
-
-          <details>
-            <summary>2. Configuração financeira <span>›</span></summary>
-            <form class="form" id="configForm">
-              <div class="row2"><div class="field"><label>Ticket fundador (R$)</label><input name="ticket" value="120,00" required></div><div class="field"><label>Taxa por membro (R$)</label><input name="fee" value="5,00" required></div></div>
-              <div class="row2"><div class="field"><label>Custo variável/membro (R$)</label><input name="variable" value="5,00" required></div><div class="field"><label>Exposição aprovada (R$)</label><input name="exposure" value="0,00" required></div></div>
-              <div class="row2"><div class="field"><label>Contingência</label><select name="contingencyType"><option value="percentage">Percentual</option><option value="fixed">Valor fixo</option></select></div><div class="field"><label>Percentual (%) ou valor R$</label><input name="contingency" value="15,00" required></div></div>
-              <button class="btn primary">Criar nova versão</button>
-            </form>
-          </details>
-
-          <details>
-            <summary>3. Custos protegidos <span>›</span></summary>
-            <form class="form" id="costForm">
-              <div class="row2"><div class="field"><label>Categoria</label><input name="category" value="produção" required></div><div class="field"><label>Tipo</label><select name="costType"><option>fixed</option><option>variable</option><option>provision</option><option>tax</option><option>other</option></select></div></div>
-              <div class="field"><label>Descrição</label><input name="description" placeholder="Ex.: estrutura principal" required></div>
-              <div class="field"><label>Valor protegido (R$)</label><input name="amount" placeholder="70000,00" required></div>
-              <button class="btn primary">Adicionar custo aprovado</button>
-            </form>
-          </details>
-
-          <details>
-            <summary>4. Receita garantida <span>›</span></summary>
-            <form class="form" id="revenueForm">
-              <div class="row2"><div class="field"><label>Tipo</label><select name="revenueType"><option value="sponsorship">Patrocínio</option><option value="guaranteed_partner">Parceiro garantido</option><option value="other_guaranteed">Outra garantida</option></select></div><div class="field"><label>Status</label><select name="status"><option value="promised">Prometido</option><option value="contracted">Contratado</option><option value="partially_received">Parcialmente recebido</option><option value="received">Recebido</option></select></div></div>
-              <div class="field"><label>Contraparte</label><input name="counterparty" value="Parceiro HML"></div>
-              <div class="row2"><div class="field"><label>Valor bruto (R$)</label><input name="gross" value="10000,00" required></div><div class="field"><label>Elegível ao quórum (R$)</label><input name="eligible" value="0,00" required></div></div>
-              <button class="btn primary">Adicionar receita</button>
-            </form>
-          </details>
-
-          <details>
-            <summary>5. Pagamento mock HML <span>›</span></summary>
-            <form class="form" id="paymentForm">
-              <div class="field"><label>Valor bruto (R$)</label><input name="amount" value="120,00" required></div>
-              <button class="btn primary">Criar pagamento pendente</button>
-              <button class="btn warn" type="button" id="confirmPayment">Confirmar último pagamento</button>
-              <button class="btn danger" type="button" id="refundPayment">Reembolsar último pagamento</button>
-              <div class="small" id="paymentState">Nenhum pagamento criado nesta sessão.</div>
-            </form>
-          </details>
-
-          <details>
-            <summary>6. Checklist <span>›</span></summary>
-            <form class="form" id="checkForm">
-              <div class="row2"><div class="field"><label>Código</label><input name="code" value="operacao_validada" required></div><div class="field"><label>Status</label><select name="status"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="rejected">Rejeitado</option><option value="not_applicable">Não aplicável</option></select></div></div>
-              <div class="field"><label>Descrição</label><input name="label" value="Operação HML validada" required></div>
-              <button class="btn primary">Salvar check</button>
-            </form>
-          </details>
-
-          <details>
-            <summary>7. GO / NO-GO <span>›</span></summary>
-            <form class="form" id="goForm">
-              <div class="field"><label>Exposição necessária projetada (R$)</label><input name="exposure" value="0,00" required></div>
-              <div class="message">O motor assume automaticamente novas vendas = 0 e bar = R$ 0.</div>
-              <button class="btn primary">Executar revisão</button>
-            </form>
-          </details>
-
-          <details class="danger-zone">
-            <summary>8. Confirmar edição <span>›</span></summary>
-            <form class="form" id="confirmForm">
-              <div class="field"><label>Motivo / evidência</label><textarea name="reason" required>Confirmação controlada no HML após validação dos gates.</textarea></div>
-              <div class="message">O backend revalida quórum, configuração, checklist e GO atual. Tela desatualizada não contorna o gate.</div>
-              <button class="btn danger">Confirmar edição no HML</button>
-            </form>
-          </details>
-        </div>
-      </div>
-    </section>
-  </main>
-  <footer>Console de homologação · Desenvolvido por <a href="https://clanmarketing.com.br/">Clan Digital</a></footer>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
-<script>
-const READ='https://heckakjcpwomoucobtau.supabase.co/functions/v1/diretoria-admin-api';
-const WRITE='https://heckakjcpwomoucobtau.supabase.co/functions/v1/diretoria-admin-write-api';
-const SESSION_KEY='diretoria_hml_session';
-let token=localStorage.getItem(SESSION_KEY)||'';let selected=null;let summary=null;let lastPaymentId=localStorage.getItem('diretoria_hml_last_payment')||'';
-const $=id=>document.getElementById(id);
-function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-function money(v){if(v===null||v===undefined)return'—';const n=Number(v);return Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):String(v);}
-function toCents(value){let s=String(value??'').trim().replace(/\s|R\$/gi,'');if(!s)throw new Error('Valor obrigatório');if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(',','.');if(!/^\d+(?:\.\d{1,2})?$/.test(s))throw new Error('Valor monetário inválido');const [w,f='']=s.split('.');return BigInt(w)*100n+BigInt((f+'00').slice(0,2));}
-function percentToBasisPoints(value){let s=String(value).trim().replace(',','.');if(!/^\d+(?:\.\d{1,2})?$/.test(s))throw new Error('Percentual inválido');const [w,f='']=s.split('.');return Number(w)*100+Number((f+'00').slice(0,2));}
-function payloadForm(form){return Object.fromEntries(new FormData(form).entries());}
-function msg(text,type=''){const el=$('message');el.textContent=text;el.className='message'+(type?' '+type:'');if(window.gsap)gsap.fromTo(el,{opacity:.3},{opacity:1,duration:.25});}
-async function request(base,path,options={}){const headers={'Content-Type':'application/json',...(options.headers||{})};if(token)headers.Authorization=`Bearer ${token}`;const res=await fetch(base+path,{...options,headers});const body=await res.json().catch(()=>({ok:false,code:'INVALID_RESPONSE'}));if(!res.ok){const e=new Error(body.code||`HTTP_${res.status}`);e.status=res.status;throw e;}return body;}
-async function read(path){return request(READ,path);}
-async function write(path,data={}){return request(WRITE,path,{method:'POST',body:JSON.stringify(data)});}
-async function validate(){if(!token){block('Sem sessão HML. Entre primeiro no painel principal.');return;}try{const me=await read('/me');if(!me.allowed)throw new Error('NOT_ALLOWED');$('sessionState').textContent=`sessão válida até ${new Date(me.expiresAt).toLocaleString('pt-BR')}`;$('blocked').classList.add('hidden');$('app').classList.remove('hidden');await loadEvents();}catch{localStorage.removeItem(SESSION_KEY);token='';block('Sessão HML inválida ou expirada. Volte ao painel principal e gere uma nova sessão.');}}
-function block(text){$('blocked').classList.remove('hidden');$('blocked').querySelector('.body').innerHTML=`${esc(text)}<br><br><a class="btn primary" href="/">Ir para login HML</a>`;$('app').classList.add('hidden');$('sessionState').textContent='sem sessão';}
-async function loadEvents(){const out=$('events');out.innerHTML='<div class="empty">Carregando…</div>';const body=await read('/events');if(!body.events?.length){out.innerHTML='<div class="empty">Nenhuma edição.</div>';selected=null;render();return;}out.innerHTML=body.events.map(e=>`<button class="event ${e.id===selected?'active':''}" data-id="${esc(e.id)}"><strong>${esc(e.name)}</strong><div class="small">${esc(e.event_code)} · ${esc(e.status)}</div>${e.quorum?`<div class="small">${esc(e.quorum.financial_status)} · ${esc(e.quorum.protected_percentage)}%</div>`:''}</button>`).join('');out.querySelectorAll('.event').forEach(b=>b.onclick=()=>selectEvent(b.dataset.id));if(!selected)await selectEvent(body.events[0].id);}
-async function selectEvent(id){selected=id;summary=await read(`/events/${id}/summary`);document.querySelectorAll('.event').forEach(b=>b.classList.toggle('active',b.dataset.id===id));render();}
-function render(){if(!summary||!selected){$('title').textContent='Console econômica';$('subtitle').textContent='Crie uma edição para começar.';$('metrics').classList.add('hidden');$('actions').classList.add('hidden');return;}const e=summary.event,q=summary.quorum;$('title').textContent=e.name;$('subtitle').textContent=`${e.event_code} · ${e.status}`;$('metrics').classList.remove('hidden');$('actions').classList.remove('hidden');$('metrics').innerHTML=`<div class="metric"><span class="small">Capital protegido</span><b>${q?money(q.protected_capital):'—'}</b></div><div class="metric"><span class="small">Necessidade</span><b>${q?money(q.financial_need):'—'}</b></div><div class="metric"><span class="small">Membros válidos</span><b>${q?Number(q.valid_credit_count).toLocaleString('pt-BR'):'—'}</b></div><div class="metric"><span class="small">Estado financeiro</span><b style="font-size:15px">${esc(q?.financial_status??'SEM SNAPSHOT')}</b></div>`;$('paymentState').textContent=lastPaymentId?`Último pagamento: ${lastPaymentId}`:'Nenhum pagamento criado nesta sessão.';}
-async function refresh(){if(selected)summary=await read(`/events/${selected}/summary`);await loadEvents();if(selected)await selectEvent(selected);}
-const NEXT={PLANEJAMENTO:'REATIVACAO',REATIVACAO:'LISTA_DE_ESPERA',LISTA_DE_ESPERA:'FORMACAO',FORMACAO:'QUORUM_EM_ANDAMENTO'};
-$('refresh').onclick=()=>refresh().catch(e=>msg(e.message,'error'));
-$('recalc').onclick=async()=>{if(!selected)return;try{await write(`/events/${selected}/recalculate`);msg('Quórum recalculado.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('newEvent').onclick=async()=>{const stamp=new Date().toISOString().replace(/\D/g,'').slice(0,14);const name=prompt('Nome da edição HML:',`Diretoria HML ${stamp.slice(8,12)}`);if(!name)return;try{const body=await write('/events',{eventCode:`HML-${stamp}`,name,slug:`hml-${stamp}`,capacity:1000});selected=body.event.id;msg('Edição HML criada em PLANEJAMENTO.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('advance').onclick=async()=>{if(!summary)return;const from=summary.event.status;const to=NEXT[from];if(!to){msg(`Não há avanço manual disponível a partir de ${from}. VIAVEL é automático e CONFIRMADO depende do gate.`,'error');return;}if(!confirm(`Avançar ${from} → ${to}?`))return;try{await write(`/events/${selected}/transition`,{to,reason:'Avanço sequencial controlado pelo Admin HML'});msg(`Edição avançou para ${to}.`,'ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('configForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);try{const contingency=f.contingencyType==='fixed'?{type:'fixed',amountCents:toCents(f.contingency).toString()}:{type:'percentage',basisPoints:percentToBasisPoints(f.contingency)};await write(`/events/${selected}/financial-config`,{founderTicketGrossCents:toCents(f.ticket).toString(),estimatedFeePerMemberCents:toCents(f.fee).toString(),variableCostPerMemberCents:toCents(f.variable).toString(),approvedExposureLimitCents:toCents(f.exposure).toString(),contingency});msg('Nova versão financeira criada.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('costForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);try{await write(`/events/${selected}/costs`,{category:f.category,description:f.description,costType:f.costType,amountCents:toCents(f.amount).toString()});msg('Custo protegido aprovado e registrado.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('revenueForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);try{await write(`/events/${selected}/guaranteed-revenues`,{revenueType:f.revenueType,counterparty:f.counterparty,grossAmountCents:toCents(f.gross).toString(),eligibleAmountCents:toCents(f.eligible).toString(),status:f.status});msg('Receita garantida registrada.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('paymentForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);try{const body=await write(`/events/${selected}/mock-payments`,{amountGrossCents:toCents(f.amount).toString()});lastPaymentId=body.payment.id;localStorage.setItem('diretoria_hml_last_payment',lastPaymentId);$('paymentState').textContent=`Pendente: ${lastPaymentId}`;msg('Pagamento mock criado como PENDING. Ele ainda não conta no quórum.','ok');}catch(e){msg(e.message,'error');}};
-$('confirmPayment').onclick=async()=>{if(!lastPaymentId){msg('Crie um pagamento pendente primeiro.','error');return;}if(!confirm('Confirmar este pagamento mock no backend HML?'))return;try{await write(`/mock-payments/${lastPaymentId}/confirm`,{});msg('Pagamento confirmado pelo backend; crédito válido e quórum recalculado.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('refundPayment').onclick=async()=>{if(!lastPaymentId){msg('Nenhum pagamento HML selecionado.','error');return;}if(!confirm('Reembolsar o último pagamento HML? Isso remove o crédito do capital protegido.'))return;try{await write(`/payments/${lastPaymentId}/refund`,{reason:'Reembolso controlado de homologação'});msg('Pagamento reembolsado; capital protegido recalculado.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('checkForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);try{await write(`/events/${selected}/checks`,{code:f.code,label:f.label,status:f.status,required:true});msg('Checklist atualizado.','ok');await refresh();}catch(e){msg(e.message,'error');}};
-$('goForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);try{const body=await write(`/events/${selected}/go-no-go`,{projectedRequiredExposureCents:toCents(f.exposure).toString()});msg(`GO/NO-GO: ${body.review.result}${body.review.reasons?.length?' · '+body.review.reasons.join(', '):''}`,body.review.result==='GO'?'ok':'error');await refresh();}catch(e){msg(e.message,'error');}};
-$('confirmForm').onsubmit=async ev=>{ev.preventDefault();const f=payloadForm(ev.currentTarget);if(!confirm('Confirmar a edição no HML? O backend revalidará todos os gates.'))return;try{await write(`/events/${selected}/confirm`,{reason:f.reason});msg('Edição confirmada pelo gate server-side.','ok');await refresh();}catch(e){msg(`Confirmação bloqueada: ${e.message}`,'error');}};
-validate();
-</script>
-</body>
-</html>
+<body><div class="shell">
+<header class="top"><div><strong>Diretoria</strong> <span class="badge">HML · CONSOLE ECONÔMICA</span></div><div class="small"><a href="/">← portal HML</a> · <span id="sessionState">validando sessão…</span></div></header>
+<main id="blocked" class="panel" style="margin-top:14px"><div class="empty">Validando sessão HML…</div></main>
+<main id="app" class="layout hidden">
+<aside class="panel"><div class="head"><div><strong>Edições HML</strong><div class="small">dados sintéticos</div></div><button class="btn" id="refresh">Atualizar</button></div><div class="body"><button class="btn primary" id="newEvent" style="width:100%;margin-bottom:12px">+ Nova edição</button><div id="events" class="events"></div></div></aside>
+<section class="panel"><div class="head"><div><strong id="title">Console econômica</strong><div id="subtitle" class="small">Selecione ou crie uma edição.</div></div><button class="btn" id="recalc">Recalcular</button></div><div class="body">
+<div id="message" class="message">Nenhuma ação aplicada.</div><div id="metrics" class="metrics hidden"></div><div id="actions" class="actions hidden">
+<details open><summary>1. Fase da edição</summary><div class="form"><div class="message">Transição sempre sequencial. VIÁVEL e CONFIRMADO não são editáveis manualmente.</div><button class="btn primary" id="advance">Avançar fase permitida</button></div></details>
+<details><summary>2. Configuração financeira</summary><form id="configForm"><div class="row"><label>Ticket fundador (R$)<input name="ticket" value="120,00" required></label><label>Taxa/membro (R$)<input name="fee" value="5,00" required></label></div><div class="row"><label>Custo variável/membro<input name="variable" value="5,00" required></label><label>Exposição aprovada<input name="exposure" value="0,00" required></label></div><div class="row"><label>Contingência<select name="contingencyType"><option value="percentage">Percentual</option><option value="fixed">Valor fixo</option></select></label><label>% ou R$<input name="contingency" value="15,00" required></label></div><button class="btn primary">Criar nova versão</button></form></details>
+<details><summary>3. Custos protegidos</summary><form id="costForm"><div class="row"><label>Categoria<input name="category" value="produção" required></label><label>Tipo<select name="costType"><option>fixed</option><option>variable</option><option>provision</option><option>tax</option><option>other</option></select></label></div><label>Descrição<input name="description" placeholder="Estrutura principal" required></label><label>Valor (R$)<input name="amount" placeholder="70000,00" required></label><button class="btn primary">Adicionar custo aprovado</button></form></details>
+<details><summary>4. Receita garantida</summary><form id="revenueForm"><div class="row"><label>Tipo<select name="revenueType"><option value="sponsorship">Patrocínio</option><option value="guaranteed_partner">Parceiro garantido</option><option value="other_guaranteed">Outra garantida</option></select></label><label>Status<select name="status"><option value="promised">Prometido</option><option value="contracted">Contratado</option><option value="partially_received">Parcial</option><option value="received">Recebido</option></select></label></div><label>Contraparte<input name="counterparty" value="Parceiro HML"></label><div class="row"><label>Bruto (R$)<input name="gross" value="10000,00" required></label><label>Elegível ao quórum<input name="eligible" value="0,00" required></label></div><button class="btn primary">Adicionar receita</button></form></details>
+<details><summary>5. Pagamento mock</summary><form id="paymentForm"><label>Valor bruto (R$)<input name="amount" value="120,00" required></label><button class="btn primary">Criar PENDING</button><button class="btn warn" type="button" id="confirmPayment">Confirmar último</button><button class="btn danger" type="button" id="refundPayment">Reembolsar último</button><div id="paymentState" class="small">Nenhum pagamento criado nesta sessão.</div></form></details>
+<details><summary>6. Checklist</summary><form id="checkForm"><div class="row"><label>Código<input name="code" value="operacao_validada" required></label><label>Status<select name="status"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="rejected">Rejeitado</option><option value="not_applicable">Não aplicável</option></select></label></div><label>Descrição<input name="label" value="Operação HML validada" required></label><button class="btn primary">Salvar check</button></form></details>
+<details><summary>7. GO / NO-GO</summary><form id="goForm"><label>Exposição necessária (R$)<input name="exposure" value="0,00" required></label><div class="message">Novas vendas = 0 e bar = R$ 0 são impostos pelo motor.</div><button class="btn primary">Executar revisão</button></form></details>
+<details><summary>8. Confirmar edição</summary><form id="confirmForm"><label>Motivo<textarea name="reason" required>Confirmação controlada no HML após validação dos gates.</textarea></label><div class="message">Backend revalida snapshot atual, configuração, checklist e GO.</div><button class="btn danger">Confirmar edição HML</button></form></details>
+</div></div></section></main><footer>Desenvolvido por <a href="https://clanmarketing.com.br/">Clan Digital</a></footer></div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script><script src="/writes.js"></script>
+</body></html>
