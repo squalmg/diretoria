@@ -24,4 +24,10 @@ CREATE INDEX checkout_intents_reconciliation_idx
   ON checkout_intents(reconciliation_status, updated_at)
   WHERE reconciliation_status IN ('pending','required');
 
+-- O índice legado era parcial. Um UNIQUE normal continua aceitando múltiplos NULL
+-- no PostgreSQL e permite ON CONFLICT(payment_id) sem enfraquecer a regra:
+-- cada pagamento pode originar no máximo um crédito.
+DROP INDEX IF EXISTS credits_payment_uq;
+CREATE UNIQUE INDEX credits_payment_uq ON credits(payment_id);
+
 COMMIT;
