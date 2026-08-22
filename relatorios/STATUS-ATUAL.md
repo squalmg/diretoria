@@ -1,16 +1,15 @@
 # STATUS ATUAL — DIRETORIA
 
-**Data:** 21/08/2026 22:31 BRT  
+**Data:** 21/08/2026  
 **Fase:** Incremento 1 — Núcleo Econômico  
-**Estado:** **HML-G0 APROVADO; PRONTO PARA DESENVOLVER O NÚCLEO ECONÔMICO**
+**Estado:** **CORE TRANSACIONAL APROVADO; PRÓXIMO SLICE É API + ADMIN HML**
 
 ## Repositório
 
 - GitHub: `squalmg/diretoria`;
 - branch principal: `main`;
-- commit da Fundação V0.1: `ae2b10ce4348cbf2b8e5cfd3f40a11a36b217980`;
-- hardening HML: `7ad961ee394fd3860a9604f3b278387b79612e15`;
-- backup/restore CI: `0650a2ff2024e77c0b984ca294161e79caaeefa4`.
+- HML-G0: **APROVADO**;
+- PR ativo do core: `#5 feat: implementar primeiro núcleo econômico transacional`.
 
 ## HML persistente
 
@@ -28,61 +27,99 @@
 - project ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
 - estado observado: `ACTIVE_HEALTHY`;
-- migrations aplicadas: `0001`, `0002`, `0003`.
+- migrations HML aplicadas: `0001` a `0008`.
 
-## HML-G0 — evidências aprovadas
+## Concluído no Incremento 1 — core transacional
 
-- 10/10 testes de domínio da Fundação: PASS;
-- secret scan: PASS;
-- migrations do zero em PostgreSQL 18.6: PASS;
-- 23/23 tabelas públicas da Fundação com RLS: PASS;
-- `user_roles` com PK física: PASS;
-- seed RBAC com 8 roles e 11 permissions: PASS;
-- advisors de segurança: sem ERROR de RLS desabilitado;
-- advisor mantém apenas INFO de RLS sem policy, intencionalmente default-deny;
-- logs PostgreSQL disponíveis;
-- deploy Vercel persistente: READY;
-- health endpoint: PASS;
-- backup/restore com PostgreSQL 18: PASS;
-- dado sintético, RBAC e RLS preservados após restore: PASS.
+- criação de edição;
+- configuração financeira versionada;
+- custos protegidos;
+- receitas garantidas;
+- pagamento mock/HML idempotente;
+- crédito válido;
+- recálculo e snapshots de quórum;
+- reembolso e queda do capital protegido;
+- checklist de confirmação;
+- GO/NO-GO;
+- confirmação server-side;
+- `refunds` persistido;
+- trigger PostgreSQL de máquina de estados;
+- RLS default-deny;
+- `search_path` fixo na função crítica.
 
-Relatório detalhado:
+## Evidência principal
 
-`relatorios/2026-08-21-HML-G0.md`
+GitHub Actions run final:
 
-## Decisão
+`32544462072`
 
-**HML-G0 = APROVADO.**
+Resultado:
 
-A Fundação atende ao gate necessário para iniciar o núcleo econômico sem tocar em produção.
+- 10/10 testes de domínio: PASS;
+- migrations `0001–0008`: PASS;
+- schema/RLS/trigger: PASS;
+- cenário econômico integrado: PASS;
+- backup/restore após cenário: PASS.
 
-## Incremento atual
+Cenário integrado provado:
 
-# Incremento 1 — Núcleo Econômico
+`640 → NAO_VIAVEL → 641 → VIAVEL → reembolso → 640 → novo pagamento → 641 → GO atual → CONFIRMADO`
 
-Ordem de execução:
+Também provado:
 
-1. casos de uso/repositories para criar edição;
-2. configuração financeira versionada;
-3. custos protegidos;
+- replay de webhook não duplica crédito;
+- promessa não reduz quórum;
+- bar não é receita garantida elegível;
+- GO antigo fica inválido depois de novo snapshot;
+- confirmação sem gate é bloqueada.
+
+Relatório:
+
+`relatorios/2026-08-21-INCREMENTO-1-NUCLEO-ECONOMICO.md`
+
+## Supabase Advisors
+
+Segurança:
+
+- sem ERROR de RLS desabilitado;
+- sem WARN de `function_search_path_mutable`;
+- INFO `rls_enabled_no_policy` permanece intencionalmente: default-deny até políticas explícitas serem necessárias.
+
+Performance:
+
+- apenas INFO de índices ainda sem uso, esperado em HML sem carga real.
+
+## Ainda não concluído no Incremento 1
+
+1. API HML expondo os casos de uso;
+2. autorização/RBAC server-side nos endpoints;
+3. painel administrativo conectado ao backend;
+4. autenticação HML para operadores;
+5. fluxos visuais ADM-03 a ADM-15 mínimos.
+
+Gateway de pagamento real, preço real e produção continuam fora deste slice e não devem ser inventados.
+
+## Próximo passo
+
+# Slice API + Admin HML
+
+Fluxo:
+
+`Admin HML → API → PostgresEconomicCore → Supabase HML`
+
+Prioridade:
+
+1. `/api/admin/events`;
+2. configuração financeira;
+3. custos;
 4. receitas garantidas;
-5. pagamento mock/HML idempotente;
-6. geração de crédito;
-7. recálculo e persistência de snapshots de quórum;
-8. reembolso e queda do capital protegido;
-9. checklist de confirmação;
-10. GO/NO-GO;
-11. confirmação server-side;
-12. painel administrativo mínimo ligado ao backend/banco.
+5. dashboard/quórum;
+6. pagamento mock controlado de HML;
+7. reembolso;
+8. checklist;
+9. GO/NO-GO;
+10. confirmar edição.
 
-## Decisões ainda abertas relevantes
-
-- gateway de pagamento real;
-- autenticação real/provider;
-- preço/ticket fundador;
-- percentual padrão de contingência;
-- provedores de produção.
-
-Essas decisões não bloqueiam o fluxo mock/HML do Incremento 1 quando configuradas explicitamente como dados de teste.
+Depois disso, validar o primeiro fluxo navegável de ponta a ponta no HML.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**
