@@ -39,8 +39,23 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION hml_consume_bootstrap(text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION hml_consume_bootstrap(text, text) FROM anon;
-REVOKE ALL ON FUNCTION hml_consume_bootstrap(text, text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION hml_consume_bootstrap(text, text) TO service_role;
+
+-- Supabase provides these roles. Vanilla PostgreSQL used by CI does not, so
+-- apply role-specific privileges only when the roles exist.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION hml_consume_bootstrap(text, text) FROM anon';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION hml_consume_bootstrap(text, text) FROM authenticated';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    EXECUTE 'GRANT EXECUTE ON FUNCTION hml_consume_bootstrap(text, text) TO service_role';
+  END IF;
+END;
+$$;
 
 COMMIT;
