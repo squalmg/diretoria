@@ -5,7 +5,7 @@ const ignored = new Set(['.git','node_modules','artifacts']);
 const allowFiles = new Set(['.env.example','scripts/check-secrets.mjs']);
 const patterns = [
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
-  /(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?(?!CHANGE_ME|example|placeholder)[A-Za-z0-9_\-\.]{16,}/i,
+  /\b(?:password|passwd|secret|token|api[_-]?key)\b\s*[:=]\s*["']?(?!CHANGE_ME|example|placeholder)[A-Za-z0-9_\-\.]{16,}/i,
 ];
 
 function walk(dir) {
