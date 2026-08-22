@@ -5,6 +5,7 @@ on:
     paths:
       - 'packages/payments/**'
       - 'scripts/integration-payment-provider-contract.ts'
+      - 'scripts/check-payment-provider-contract.mjs'
       - '.github/workflows/payment-provider-contract.yml'
   workflow_dispatch:
 
@@ -20,11 +21,6 @@ jobs:
       - name: Static provider guard
         run: |
           node --check packages/payments/provider-contract.ts
-          if grep -Eqi "mercadopago|stripe|asaas|pagarme|pagseguro|efi|gerencianet|cielo|rede" packages/payments/provider-contract.ts; then
-            echo "Concrete payment provider found before provider decision."
-            exit 1
-          fi
-          grep -q "name = 'unconfigured'" packages/payments/provider-contract.ts
-          grep -q "PAYMENT_PROVIDER_WEBHOOK_VERIFICATION_REQUIRED" packages/payments/provider-contract.ts
+          node scripts/check-payment-provider-contract.mjs
       - name: Provider contract integration
         run: node --experimental-strip-types scripts/integration-payment-provider-contract.ts
