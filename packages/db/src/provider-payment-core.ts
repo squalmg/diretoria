@@ -161,7 +161,8 @@ export class PostgresProviderPaymentCore {
         `insert into payments(profile_id,event_id,checkout_intent_id,purpose,gateway,idempotency_key,amount_gross,base_amount,
           processing_fee_passed,currency_code,payment_method,status)
          values ($1,$2,$3,'club_credit','asaas',$4,$5,$6,$7,$8,$9,'pending')
-         on conflict (checkout_intent_id) do update set checkout_intent_id=excluded.checkout_intent_id
+         on conflict (checkout_intent_id) where checkout_intent_id is not null
+         do update set checkout_intent_id=excluded.checkout_intent_id
          returning id,status`,
         [intent.profile_id,intent.event_id,intent.id,`asaas-checkout:${intent.id}`,intent.amount_gross,intent.base_amount,intent.processing_fee_amount,intent.currency_code,intent.payment_method],
       );
