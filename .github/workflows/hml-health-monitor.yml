@@ -1,0 +1,27 @@
+name: hml-health-monitor
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/hml-health-monitor.yml'
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Public HML
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 12 https://diretoria-public-hml.vercel.app/ > /dev/null
+          curl --fail --silent --show-error --max-time 12 https://diretoria-public-hml.vercel.app/api/health | tee /tmp/public.json
+          node -e "const x=require('/tmp/public.json');if(!x.ok||x.database!=='connected')process.exit(1)"
+      - name: Admin HML
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 12 https://diretoria-hml.vercel.app/ > /dev/null
+          curl --fail --silent --show-error --max-time 12 https://diretoria-hml.vercel.app/api/edge-health | tee /tmp/admin.json
+          node -e "const x=require('/tmp/admin.json');if(!x.ok||x.database!=='connected')process.exit(1)"
