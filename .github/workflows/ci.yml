@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: diretoria
+          POSTGRES_USER: diretoria
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U diretoria -d diretoria"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Domain and static checks
+        run: npm run check
+      - name: Apply migrations from zero
+        env:
+          PGPASSWORD: ci_only_password
+        run: |
+          psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f packages/db/migrations/0001_core_foundation.sql
+          psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f packages/db/migrations/0002_seed_rbac.sql
+      - name: Assert core tables
+        env:
+          PGPASSWORD: ci_only_password
+        run: |
+          count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('profiles','events','payments','credits','quorum_snapshots','audit_logs');")
+          test "$count" = "6"
