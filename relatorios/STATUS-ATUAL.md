@@ -2,182 +2,130 @@
 
 **Data:** 22/08/2026  
 **Fase:** Incremento 2 — Reativação e Aquisição  
-**Estado:** **CRM ADMIN HML HOMOLOGADO; PRÓXIMO GATE É ANALYTICS/ACERVO/POLÍTICA PARA PRIMEIRO ANÚNCIO**
+**Estado:** **INFRAESTRUTURA TÉCNICA DO GATE PRÉ-ANÚNCIO CONCLUÍDA; PRIMEIRO ANÚNCIO AINDA BLOQUEADO POR DEPENDÊNCIAS EXTERNAS**
 
 ## Repositório
 
 - GitHub: `squalmg/diretoria`;
 - branch principal: `main`;
+- merge do gate pré-anúncio: `4364fd8d6a6dc038740a04b57630edd44774f724`;
 - HML-G0: **APROVADO**;
-- core econômico transacional: **APROVADO**;
-- Admin HML econômico: **APROVADO e publicado**;
-- núcleo aquisição/CRM: **APROVADO**;
-- API pública + lista de espera HML: **APROVADAS e publicadas**;
-- PR #10: CRM Admin read-only, CI e deploy HML aprovados.
+- core econômico: **APROVADO**;
+- aquisição/CRM: **APROVADOS**;
+- Admin HML econômico/CRM/pré-anúncio: **PUBLICADOS**;
+- Public HML + lista de espera: **PUBLICADOS**.
 
-## HML administrativo
+## Gate técnico pré-anúncio concluído
 
-### Vercel
+### Acervo e direitos
 
-- projeto: `diretoria-hml`;
-- project id: `prj_CSbGzOVsvIkkJLosiemlHmvcG7XV`;
+- migration `0017_asset_catalog_metadata` aplicada no Supabase HML;
+- catálogo de metadados de acervo;
+- evento histórico/data de captura;
+- fonte/crédito e URL de origem;
+- status de direitos e permissão de uso;
+- tags;
+- alterações críticas auditadas;
+- Admin HML `/pre-ad.html` publicado.
+
+### Analytics first-party
+
+- leads por período;
+- distribuição diária;
+- origem/source;
+- campanha;
+- consentimentos atuais;
+- pressão de rate-limit 24h;
+- sem dependência de pixel externo.
+
+### Consent mode
+
+Public HML mantém:
+
+- `analytics=false` por padrão;
+- `marketing=false` por padrão;
+- GA4 ID = `null`;
+- Meta Pixel ID = `null`;
+- nenhum loader de terceiros ativo sem configuração/consentimento.
+
+### Observabilidade
+
+Workflow `hml-health-monitor` validado e verde.
+
+## HML canônico
+
+### Admin
+
 - URL: `https://diretoria-hml.vercel.app`;
-- deployment final alinhado ao GitHub: `dpl_CTeVMkPpHTKocgnD6up9rSzu2qx3`;
 - `/`: HTTP 200;
-- `/writes.html`: HTTP 200;
-- `/crm.html`: HTTP 200;
-- `/crm.js`: HTTP 200;
-- `/api/edge-health`: HTTP 200.
+- `/writes.html`: HTTP 200, console econômica completa;
+- `/crm.html`: HTTP 200, CRM completo;
+- `/pre-ad.html`: HTTP 200, gate técnico pré-anúncio;
+- `/api/edge-health`: HTTP 200, banco conectado.
 
-O snapshot Vercel foi refeito com os arquivos exatos do branch. A divergência temporária causada por uma versão simplificada da console econômica foi eliminada; não permanece `writes-core.html` ou iframe não versionado no deploy canônico.
+### Public
+
+- URL: `https://diretoria-public-hml.vercel.app`;
+- `consent.js`: HTTP 200 e deny-by-default.
 
 ### Supabase
 
-- project/ref: `heckakjcpwomoucobtau`;
+- projeto/ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
+- migrations aplicadas: `0001–0017`;
 - Edge `diretoria-admin-api`: ACTIVE;
 - Edge `diretoria-admin-write-api`: ACTIVE;
-- Edge `diretoria-crm-api`: **ACTIVE**;
+- Edge `diretoria-crm-api`: ACTIVE;
 - Edge `diretoria-public-api`: ACTIVE;
-- migrations aplicadas: `0001–0016`.
+- Edge `diretoria-pre-ad-api`: ACTIVE.
 
-## CRM Admin implementado
+## Evidências de CI do último head do PR #11
 
-### Backend canônico
+Commit:
 
-`packages/db/src/crm-read.ts`
+`23e2970311713a762aa31e92f08cba60c14a3421`
 
-`PostgresCrmRead` fornece:
+Workflows:
 
-1. health do Postgres;
-2. overview de perfis;
-3. contagem 24h/7d;
-4. distribuição por estágio;
-5. origens mais frequentes;
-6. campanhas mais frequentes;
-7. resumo de consentimentos concedidos/negados;
-8. lista paginada de profiles;
-9. busca por nome/e-mail/telefone;
-10. filtros por estágio/origem/campanha;
-11. consentimentos atuais na listagem;
-12. perfil 360.
+- `ci`: SUCCESS;
+- `pre-ad-gate`: SUCCESS;
+- `crm-read`: SUCCESS;
+- `public-leads`: SUCCESS;
+- `hml-health-monitor`: SUCCESS.
 
-### Perfil 360
+## Advisors Supabase
 
-Inclui:
+Segurança:
 
-- identidade;
-- lifecycle CRM;
-- histórico de atribuições;
-- histórico de consentimentos;
-- interações;
-- analytics first-party;
-- pagamentos;
-- créditos;
-- auditoria.
+- sem ERROR/WARN novo;
+- `rls_enabled_no_policy` permanece INFO e intencional no modelo default-deny do HML.
 
-O CRM é **read-only** neste slice. Não existe botão/API para mudar manualmente lifecycle ou consentimentos.
+Performance:
 
-### Edge API
+- somente `unused_index` INFO, esperado em ambiente de homologação com pouca carga.
 
-`diretoria-crm-api`
+## Dependências externas que ainda bloqueiam primeiro anúncio real
 
-Rotas HML protegidas pela mesma sessão temporária do Admin:
+1. política/textos jurídicos finais;
+2. IDs reais Meta/Google e demais plataformas aprovadas;
+3. domínio público definitivo;
+4. arquivos reais do acervo;
+5. confirmação de direitos de uso de cada arquivo utilizado;
+6. criativos/campanhas finais.
 
-- `GET /health`;
-- `GET /overview`;
-- `GET /profiles`;
-- `GET /profiles/:id`.
+Nenhuma dessas decisões deve ser inventada no código.
 
-CORS limitado ao Admin HML + localhost.
+## Próximo trabalho técnico possível
 
-A função delega as consultas ao `PostgresCrmRead` canônico; SQL de CRM não é duplicado entre teste e runtime.
+Como o Incremento 2 atingiu o limite técnico sem decisões externas, o desenvolvimento pode avançar em paralelo para o **Incremento 3 — Club e pagamento real**, sem ativar pagamento real ainda.
 
-### Interface
+Primeiro slice recomendado:
 
-`/crm.html` + `/crm.js`
-
-Recursos:
-
-- dashboard de perfis;
-- barras/filtros por estágio;
-- busca;
-- filtro de origem;
-- filtro de campanha;
-- lista de pessoas;
-- chips de consentimento;
-- perfil 360 completo;
-- navegação entre portal/CRM/econômico.
-
-## Evidência automatizada do CRM
-
-### CRM read
-
-Run `32567993967`: **SUCCESS**.
-
-Cenário:
-
-`PostgresAcquisitionCore → lead sintético → PostgresCrmRead`
-
-Provado:
-
-- overview;
-- stage `lead`;
-- source/campaign;
-- consentimentos;
-- busca e filtros;
-- perfil 360;
-- interação `lead_capture`;
-- analytics `lead_created`;
-- auditoria `lead.captured`;
-- paginação inválida rejeitada;
-- UUID inválido rejeitado.
-
-### Regressão
-
-- CI geral `32567993932`: SUCCESS;
-- public-leads `32567993965`: SUCCESS.
-
-Portanto o CRM não quebrou núcleo econômico, aquisição, captura pública ou restore.
-
-## HML público de reativação
-
-- Vercel: `https://diretoria-public-hml.vercel.app`;
-- project id: `prj_2TBT4bKM9SmIj9Txx2CZP7Vuud7Y`;
-- Edge `diretoria-public-api`: ACTIVE;
-- smoke HTTP real `32567590292`: SUCCESS;
-- captura pública, consentimentos, atribuição, CRM e analytics confirmados no banco.
-
-## Ainda necessário antes do primeiro anúncio real
-
-1. textos/política jurídica definitivos de privacidade e marketing;
-2. marca e acervo final da campanha;
-3. catalogação dos direitos de uso do acervo histórico;
-4. pixels/analytics externos com consent mode;
-5. IDs reais das plataformas de mídia — não inventar;
-6. monitoramento/alertas da captura pública;
-7. campanhas e criativos finais;
-8. domínio público definitivo.
-
-## Próximo passo
-
-# Gate “PRONTO PARA PRIMEIRO ANÚNCIO”
-
-Desenvolvimento que pode continuar sem decisões externas:
-
-1. catálogo/admin do acervo;
-2. dashboard first-party de aquisição já baseado em `analytics_events`;
-3. monitoramento técnico da captura pública;
-4. camada de consent mode que não carrega pixels sem autorização.
-
-Dependências que deverão ser fornecidas/decididas antes da ativação real:
-
-- política jurídica final;
-- IDs Meta/Google/etc.;
-- domínio público;
-- arquivos/fotos/vídeos finais e respectivos direitos;
-- peças/campanhas finais.
-
-Nenhum primeiro anúncio real deve ser liberado antes dessas dependências e do gate completo.
+1. autenticação pública HML;
+2. vínculo `auth user → profile/customer_id → users`;
+3. área inicial do membro;
+4. carteira read-only de créditos/ingressos;
+5. testes de cadastro/login/recuperação em HML;
+6. nenhuma oferta/preço/gateway real até as respectivas decisões estarem fechadas.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**
