@@ -41,8 +41,8 @@ jobs:
           node --check apps/public-hml/account.js
           grep -q "SUPABASE_PUBLISHABLE" apps/public-hml/account.js
           grep -q "ticketsImplemented" apps/public-hml/account.js
-          if grep -Eqi "checkout|\bpix\b|credit.?card|gateway|confirmPayment|createPayment|paymentIntent" apps/public-hml/account.js; then
-            echo "Executable checkout/payment integration is not allowed in this auth-only slice."
+          if grep -Eqi "checkout|stripe|mercadopago|admin-write-api|mock-payments|paymentIntent|/payments/.*/refund" apps/public-hml/account.js; then
+            echo "Economic write/checkout capability is not allowed in this auth-only slice."
             exit 1
           fi
       - name: Apply migrations from zero
