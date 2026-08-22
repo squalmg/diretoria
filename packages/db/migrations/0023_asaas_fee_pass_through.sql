@@ -47,8 +47,31 @@ ALTER TABLE checkout_intents
   ADD COLUMN fee_quoted_at timestamptz;
 
 UPDATE checkout_intents
-SET base_amount = amount_gross
+SET base_amount = amount_gross - processing_fee_amount
 WHERE base_amount IS NULL;
+
+-- Compatibilidade: intents antigos ou código ainda neutro podem informar apenas
+-- o total. Antes da cotação Asaas, taxa=0 e base=total. Depois da cotação, todos
+-- os três componentes devem vir explicitamente e a constraint garante a soma.
+CREATE OR REPLACE FUNCTION normalize_checkout_fee_composition()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.base_amount IS NULL THEN
+    NEW.base_amount := NEW.amount_gross - COALESCE(NEW.processing_fee_amount, 0);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS checkout_fee_composition_guard ON checkout_intents;
+CREATE TRIGGER checkout_fee_composition_guard
+BEFORE INSERT OR UPDATE OF amount_gross, base_amount, processing_fee_amount
+ON checkout_intents
+FOR EACH ROW
+EXECUTE FUNCTION normalize_checkout_fee_composition();
 
 ALTER TABLE checkout_intents
   ALTER COLUMN base_amount SET NOT NULL,
@@ -73,8 +96,30 @@ ALTER TABLE payments
   ADD COLUMN provider_fee_actual numeric(14,2);
 
 UPDATE payments
-SET base_amount = amount_gross
+SET base_amount = amount_gross - processing_fee_passed
 WHERE base_amount IS NULL;
+
+-- Compatibilidade com mocks e integrações históricas: código legado que ainda
+-- envia apenas amount_gross continua significando taxa repassada zero.
+CREATE OR REPLACE FUNCTION normalize_payment_fee_composition()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.base_amount IS NULL THEN
+    NEW.base_amount := NEW.amount_gross - COALESCE(NEW.processing_fee_passed, 0);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS payment_fee_composition_guard ON payments;
+CREATE TRIGGER payment_fee_composition_guard
+BEFORE INSERT OR UPDATE OF amount_gross, base_amount, processing_fee_passed
+ON payments
+FOR EACH ROW
+EXECUTE FUNCTION normalize_payment_fee_composition();
 
 ALTER TABLE payments
   ALTER COLUMN base_amount SET NOT NULL,
