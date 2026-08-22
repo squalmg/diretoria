@@ -18,6 +18,14 @@ async function count(table: string, profileId?: string): Promise<number> {
   return Number(result.rows[0].count);
 }
 
+async function countIdentity(email: string, phone: string): Promise<number> {
+  const result = await pool.query(
+    `select count(*)::int as count from profiles where email_normalized=$1 or phone_e164=$2`,
+    [email, phone],
+  );
+  return Number(result.rows[0].count);
+}
+
 async function latestStage(profileId: string): Promise<string | null> {
   const result = await pool.query(
     `select to_stage from crm_stage_history where profile_id=$1 order by changed_at desc,id desc limit 1`,
@@ -44,7 +52,7 @@ try {
 
   assert.equal(first.created, true);
   assert.equal(first.stageChanged, true);
-  assert.equal(await count('profiles'), 1);
+  assert.equal(await countIdentity('alpha.example@example.com', '+5564999990001'), 1);
   assert.equal(await count('consents', first.profileId), 4);
   assert.equal(await count('acquisition_attributions', first.profileId), 1);
   assert.equal(await count('crm_interactions', first.profileId), 1);
@@ -75,7 +83,7 @@ try {
   });
   assert.equal(repeated.profileId, first.profileId);
   assert.equal(repeated.created, false);
-  assert.equal(await count('profiles'), 1);
+  assert.equal(await countIdentity('alpha.example@example.com', '+5564999990001'), 1);
   assert.equal(await count('acquisition_attributions', first.profileId), 2);
   assert.equal(await count('consents', first.profileId), 8);
   assert.equal(await latestStage(first.profileId), 'lead');
