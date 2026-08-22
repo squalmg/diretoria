@@ -6,6 +6,7 @@ on:
       - 'packages/db/migrations/**'
       - 'packages/db/src/member-accounts.ts'
       - 'scripts/integration-member-auth.ts'
+      - 'scripts/check-member-ui.mjs'
       - 'supabase/functions/diretoria-member-api/**'
       - 'apps/public-hml/account.*'
       - '.github/workflows/member-auth.yml'
@@ -39,27 +40,7 @@ jobs:
       - name: Public member UI static checks
         run: |
           node --check apps/public-hml/account.js
-          grep -q "SUPABASE_PUBLISHABLE" apps/public-hml/account.js
-          grep -q "ticketsImplemented" apps/public-hml/account.js
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs';
-          const source = readFileSync('apps/public-hml/account.js', 'utf8').toLowerCase();
-          const forbidden = [
-            'checkout',
-            'stripe',
-            'mercadopago',
-            'diretoria-admin-write-api',
-            '/mock-payments',
-            'paymentintent',
-            '/refund',
-          ];
-          const found = forbidden.filter((term) => source.includes(term));
-          if (found.length) {
-            console.error('Economic write/checkout capability found:', found.join(', '));
-            process.exit(1);
-          }
-          console.log('OK: member UI is auth/read-only only.');
-          NODE
+          node scripts/check-member-ui.mjs
       - name: Apply migrations from zero
         env:
           PGPASSWORD: ci_only_password
