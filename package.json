@@ -8,10 +8,11 @@
   },
   "scripts": {
     "test": "node scripts/run-tests.mjs",
-    "check": "npm run test && npm run secrets:check && npm run migrations:check && npm run docs:check",
+    "check": "npm run test && npm run secrets:check && npm run migrations:check && npm run docs:check && npm run hml:check",
     "secrets:check": "node scripts/check-secrets.mjs",
     "migrations:check": "node scripts/check-migrations.mjs",
     "docs:check": "node scripts/check-docs.mjs",
+    "hml:check": "node scripts/check-hml-html.mjs",
     "integration:economic-core": "node --experimental-strip-types scripts/integration-economic-core.ts",
     "api": "node --experimental-strip-types apps/api/src/server.ts",
     "admin": "node apps/admin/server.mjs",
