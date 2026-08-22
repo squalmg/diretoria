@@ -1,0 +1,34 @@
+name: asaas-adapter
+
+on:
+  pull_request:
+    paths:
+      - 'packages/payments/asaas-adapter.ts'
+      - 'packages/payments/asaas-adapter.test.ts'
+      - 'packages/payments/provider-contract.ts'
+      - '.github/workflows/asaas-adapter.yml'
+  workflow_dispatch:
+
+jobs:
+  asaas-adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Static adapter checks
+        run: |
+          node --check packages/payments/asaas-adapter.ts
+          grep -q "https://api-sandbox.asaas.com" packages/payments/asaas-adapter.ts
+          grep -q "https://api.asaas.com" packages/payments/asaas-adapter.ts
+          grep -q "asaas-access-token" packages/payments/asaas-adapter.ts
+          grep -q "PAYMENT_CONFIRMED" packages/payments/asaas-adapter.ts
+          grep -q "PAYMENT_RECEIVED" packages/payments/asaas-adapter.ts
+          if grep -Eqi "sk_live_|sk_test_|api[_-]?key[[:space:]]*=[[:space:]]*['\"][A-Za-z0-9]" packages/payments/asaas-adapter.ts; then
+            echo "Possible real credential literal found in adapter."
+            exit 1
+          fi
+      - name: Adapter unit tests (fake network only)
+        run: node --experimental-strip-types --test packages/payments/asaas-adapter.test.ts
