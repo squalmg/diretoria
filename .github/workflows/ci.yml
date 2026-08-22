@@ -33,11 +33,19 @@ jobs:
         env:
           PGPASSWORD: ci_only_password
         run: |
-          psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f packages/db/migrations/0001_core_foundation.sql
-          psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f packages/db/migrations/0002_seed_rbac.sql
-      - name: Assert core tables
+          for migration in packages/db/migrations/*.sql; do
+            echo "Applying ${migration}"
+            psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f "${migration}"
+          done
+      - name: Assert foundation schema and hardening
         env:
           PGPASSWORD: ci_only_password
         run: |
-          count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('profiles','events','payments','credits','quorum_snapshots','audit_logs');")
-          test "$count" = "6"
+          core_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('profiles','events','payments','credits','quorum_snapshots','audit_logs');")
+          test "$core_count" = "6"
+
+          rls_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs');")
+          test "$rls_count" = "23"
+
+          user_roles_pk=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_constraint where conrelid='public.user_roles'::regclass and contype='p';")
+          test "$user_roles_pk" = "1"
