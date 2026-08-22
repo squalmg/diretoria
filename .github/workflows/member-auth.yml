@@ -1,0 +1,60 @@
+name: member-auth
+
+on:
+  pull_request:
+    paths:
+      - 'packages/db/migrations/**'
+      - 'packages/db/src/member-accounts.ts'
+      - 'scripts/integration-member-auth.ts'
+      - 'scripts/check-member-ui.mjs'
+      - 'supabase/functions/diretoria-member-api/**'
+      - 'apps/public-hml/account.*'
+      - '.github/workflows/member-auth.yml'
+  workflow_dispatch:
+
+jobs:
+  member-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: diretoria
+          POSTGRES_USER: diretoria
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U diretoria -d diretoria"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Install runtime dependencies
+        run: npm install --no-audit --no-fund
+      - name: Public member UI static checks
+        run: |
+          node --check apps/public-hml/account.js
+          node scripts/check-member-ui.mjs
+      - name: Apply migrations from zero
+        env:
+          PGPASSWORD: ci_only_password
+        run: |
+          for f in packages/db/migrations/*.sql; do
+            psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Member account integration
+        env:
+          DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
+        run: node --experimental-strip-types scripts/integration-member-auth.ts
+      - name: Identity uniqueness assertion
+        env:
+          PGPASSWORD: ci_only_password
+        run: |
+          count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_indexes where schemaname='public' and indexname='users_auth_provider_subject_uq';")
+          test "$count" = "1"

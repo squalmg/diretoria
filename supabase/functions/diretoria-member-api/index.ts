@@ -1,0 +1,124 @@
+import { createSupabaseContext } from 'npm:@supabase/server@^1';
+import { PostgresMemberAccounts } from 'https://raw.githubusercontent.com/squalmg/diretoria/1ede7b88b0f68269aeb4ea0a55948f8331766fa6/packages/db/src/member-accounts.ts';
+
+const PUBLIC_HML_ORIGIN = 'https://diretoria-public-hml.vercel.app';
+const LOCAL_ORIGINS = new Set(['http://localhost:3200', 'http://127.0.0.1:3200']);
+let coreInstance: PostgresMemberAccounts | null = null;
+
+function originAllowed(origin: string | null): boolean {
+  if (!origin) return true;
+  return origin === PUBLIC_HML_ORIGIN || LOCAL_ORIGINS.has(origin);
+}
+
+function corsHeaders(req: Request): HeadersInit {
+  const origin = req.headers.get('origin');
+  return {
+    'Access-Control-Allow-Origin': origin && originAllowed(origin) ? origin : PUBLIC_HML_ORIGIN,
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  };
+}
+
+function json(req: Request, body: unknown, status = 200): Response {
+  return Response.json(body, { status, headers: corsHeaders(req) });
+}
+
+function routePath(req: Request): string {
+  const pathname = new URL(req.url).pathname;
+  const marker = '/diretoria-member-api';
+  const index = pathname.indexOf(marker);
+  if (index < 0) return pathname;
+  const remainder = pathname.slice(index + marker.length);
+  return remainder || '/';
+}
+
+function core(): PostgresMemberAccounts {
+  if (coreInstance) return coreInstance;
+  const connectionString = Deno.env.get('SUPABASE_DB_URL');
+  if (!connectionString) throw new Error('SUPABASE_DB_URL_REQUIRED');
+  coreInstance = new PostgresMemberAccounts(connectionString);
+  return coreInstance;
+}
+
+async function authenticated(req: Request) {
+  const { data: ctx, error } = await createSupabaseContext(req, { auth: 'user' });
+  if (error || !ctx) {
+    return { response: json(req, { ok: false, code: error?.code ?? 'AUTH_REQUIRED' }, error?.status ?? 401) } as const;
+  }
+  const subject = String(ctx.userClaims?.sub ?? '').trim();
+  if (!subject) return { response: json(req, { ok: false, code: 'AUTH_SUBJECT_REQUIRED' }, 401) } as const;
+
+  const userResult = await ctx.supabaseAdmin.auth.admin.getUserById(subject);
+  const authUser = userResult.data?.user;
+  if (userResult.error || !authUser) return { response: json(req, { ok: false, code: 'AUTH_USER_NOT_FOUND' }, 401) } as const;
+
+  const metadata = (authUser.user_metadata ?? {}) as Record<string, unknown>;
+  return {
+    subject,
+    email: authUser.email ?? null,
+    phone: authUser.phone ?? null,
+    emailVerified: Boolean(authUser.email_confirmed_at),
+    phoneVerified: Boolean(authUser.phone_confirmed_at),
+    fullName: String(metadata.full_name ?? metadata.name ?? '').trim() || null,
+  } as const;
+}
+
+function safeError(req: Request, error: unknown): Response {
+  const raw = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+  const code = raw.split(':')[0].replace(/[^A-Z0-9_]/gi, '_').toUpperCase() || 'UNKNOWN_ERROR';
+  if (code.includes('NOT_FOUND')) return json(req, { ok: false, code }, 404);
+  if (code.includes('VERIFICATION_REQUIRED') || code.includes('IDENTITY_CONFLICT') || code.includes('ALREADY_HAS_ACCOUNT') || code.includes('NOT_ACTIVE')) {
+    return json(req, { ok: false, code }, 409);
+  }
+  if (code.includes('INVALID') || code.includes('REQUIRED')) return json(req, { ok: false, code }, 400);
+  return json(req, { ok: false, code: 'MEMBER_API_ERROR' }, 500);
+}
+
+Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin');
+  if (origin && !originAllowed(origin)) return json(req, { ok: false, code: 'ORIGIN_NOT_ALLOWED' }, 403);
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req) });
+
+  const path = routePath(req);
+  if (req.method === 'GET' && (path === '/' || path === '/health')) {
+    try {
+      const result = await core().health();
+      return json(req, { ok: true, service: 'diretoria-member-api', environment: 'hml', database: result.database, payments: 'disabled' });
+    } catch {
+      return json(req, { ok: false, service: 'diretoria-member-api', database: 'unavailable' }, 503);
+    }
+  }
+
+  const auth = await authenticated(req);
+  if ('response' in auth) return auth.response;
+
+  try {
+    if (req.method === 'POST' && path === '/account/bootstrap') {
+      const account = await core().ensureAccount({
+        providerSubject: auth.subject,
+        email: auth.email,
+        phone: auth.phone,
+        emailVerified: auth.emailVerified,
+        phoneVerified: auth.phoneVerified,
+        fullName: auth.fullName,
+      });
+      return json(req, { ok: true, account });
+    }
+
+    if (req.method === 'GET' && path === '/me') {
+      const account = await core().getAccount(auth.subject);
+      return json(req, { ok: true, account });
+    }
+
+    if (req.method === 'GET' && path === '/wallet') {
+      const wallet = await core().wallet(auth.subject);
+      return json(req, { ok: true, wallet });
+    }
+
+    return json(req, { ok: false, code: 'NOT_FOUND', method: req.method, path }, 404);
+  } catch (error) {
+    return safeError(req, error);
+  }
+});
