@@ -46,8 +46,11 @@ jobs:
           core_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('profiles','events','payments','credits','refunds','quorum_snapshots','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions');")
           test "$core_count" = "10"
 
-          rls_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions');")
-          test "$rls_count" = "27"
+          acquisition_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('consents','acquisition_attributions','crm_stage_history','crm_interactions','analytics_events','assets','asset_tags');")
+          test "$acquisition_count" = "7"
+
+          rls_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions','consents','acquisition_attributions','crm_stage_history','crm_interactions','analytics_events','assets','asset_tags');")
+          test "$rls_count" = "34"
 
           user_roles_pk=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_constraint where conrelid='public.user_roles'::regclass and contype='p';")
           test "$user_roles_pk" = "1"
@@ -86,6 +89,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
         run: npm run integration:economic-core
+      - name: Acquisition and CRM integration
+        env:
+          DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
+        run: npm run integration:acquisition-core
       - name: Backup and restore drill
         run: |
           POSTGRES_CONTAINER=$(docker ps --filter "ancestor=postgres:18.6-alpine" --format '{{.ID}}' | head -n1)
@@ -113,8 +120,8 @@ jobs:
           test "$role_count" = "8"
 
           restored_rls_count=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
-            psql -U diretoria -d diretoria_restore -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions');")
-          test "$restored_rls_count" = "27"
+            psql -U diretoria -d diretoria_restore -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions','consents','acquisition_attributions','crm_stage_history','crm_interactions','analytics_events','assets','asset_tags');")
+          test "$restored_rls_count" = "34"
 
           restored_allowlist=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
             psql -U diretoria -d diretoria_restore -Atc "select count(*) from hml_admin_allowlist where email_normalized='hml-ci@example.invalid' and enabled=true;")
@@ -123,6 +130,10 @@ jobs:
           restored_session=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
             psql -U diretoria -d diretoria_restore -Atc "select count(*) from hml_admin_sessions where token_hash='ci-session-hash' and revoked_at is null;")
           test "$restored_session" = "1"
+
+          restored_consent_count=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
+            psql -U diretoria -d diretoria_restore -Atc "select count(*) from consents;")
+          test "$restored_consent_count" -gt "0"
 
           docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
             dropdb -U diretoria diretoria_restore

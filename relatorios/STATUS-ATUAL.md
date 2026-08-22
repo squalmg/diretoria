@@ -1,8 +1,8 @@
 # STATUS ATUAL — DIRETORIA
 
 **Data:** 22/08/2026  
-**Fase:** Incremento 1 — Núcleo Econômico  
-**Estado:** **ADMIN HML ECONÔMICO IMPLEMENTADO E PUBLICADO**
+**Fase:** Incremento 2 — Reativação e Aquisição  
+**Estado:** **NÚCLEO DE AQUISIÇÃO/CRM HOMOLOGADO; PRÓXIMO SLICE É API PÚBLICA + LISTA DE ESPERA**
 
 ## Repositório
 
@@ -10,22 +10,17 @@
 - branch principal: `main`;
 - HML-G0: **APROVADO**;
 - core econômico transacional: **APROVADO**;
-- Admin HML read-only: **APROVADO e mergeado no PR #6**;
-- Admin HML com writes controlados: **implementado no PR #7, CI e deploy HML aprovados**.
+- Admin HML econômico: **APROVADO e publicado**;
+- PR #8: fundação P0 de aquisição, consentimento e CRM com CI verde e migration aplicada em HML.
 
 ## HML persistente
 
 ### Aplicação
 
 - Vercel project: `diretoria-hml`;
-- project id: `prj_CSbGzOVsvIkkJLosiemlHmvcG7XV`;
 - URL: `https://diretoria-hml.vercel.app`;
-- deployment validado: `dpl_CkPLersGhaZar4hsMHrmGy22dxxJ`;
-- `/`: HTTP 200;
-- `/writes.html`: HTTP 200;
-- `/writes.js`: HTTP 200;
-- `/api/edge-health`: HTTP 200;
-- build Vercel: **READY**, sem erro de build.
+- deployment econômico validado: `dpl_CkPLersGhaZar4hsMHrmGy22dxxJ`;
+- `/`, `/writes.html`, `/writes.js` e `/api/edge-health`: HTTP 200.
 
 ### Banco / API
 
@@ -33,98 +28,108 @@
 - project ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
 - estado: `ACTIVE_HEALTHY`;
-- migrations aplicadas: `0001` a `0014`;
-- Edge Function `diretoria-admin-api`: **ACTIVE**;
-- Edge Function `diretoria-admin-write-api`: **ACTIVE**;
-- operador sintético: `HML-OPERATOR`;
-- cliente sintético: `HML-CUSTOMER`;
-- nenhum dado pessoal real utilizado no slice.
+- migrations aplicadas: `0001` a `0015`;
+- RLS default-deny mantido nas novas tabelas;
+- advisors de segurança: sem ERROR/WARN novo;
+- advisors de performance: somente INFO `unused_index`, esperado sem tráfego público.
 
-## O que está funcional
+## Incremento 1 — estado consolidado
 
-### Leitura autenticada
+O núcleo econômico está implementado, integrado ao PostgreSQL real, exposto no Admin HML e protegido por sessão temporária. O smoke de clique manual pela interface continua como gate de homologação antes de qualquer promoção produtiva, mas não bloqueia o desenvolvimento isolado do Incremento 2.
 
-- sessão HML temporária;
-- bootstrap de uso único armazenado somente por hash;
-- lista de edições;
-- resumo da edição;
-- configuração financeira;
-- custos protegidos;
-- receitas garantidas;
-- snapshot/quórum;
-- checklist;
-- GO/NO-GO.
+Regras centrais continuam válidas:
 
-### Writes HML controlados
-
-A Edge Function de writes reutiliza o `PostgresEconomicCore` canônico. Não existe segunda implementação de quórum ou GO/NO-GO na camada HTTP.
-
-Operações expostas:
-
-1. criar edição;
-2. transição sequencial de fase;
-3. criar nova versão financeira;
-4. cadastrar custo protegido;
-5. cadastrar receita garantida;
-6. recalcular quórum;
-7. criar pagamento mock `pending`;
-8. confirmar pagamento mock;
-9. reembolsar pagamento;
-10. atualizar checklist;
-11. executar GO/NO-GO;
-12. confirmar edição pelo gate server-side.
-
-## Regras preservadas
-
-- pagamento `pending` não aumenta quórum;
-- promessa não reduz necessidade financeira;
-- bar não é receita elegível para tornar a edição viável;
+- `pending` não aumenta quórum;
+- bar esperado não financia viabilidade;
 - `VIAVEL != CONFIRMADO`;
-- a UI não possui botão para forçar `VIAVEL`;
-- a UI não possui campo para editar capital protegido/quórum;
-- confirmação revalida snapshot atual + configuração + checklist + GO;
-- reembolso recalcula a proteção;
-- writes exigem sessão temporária HML válida;
-- valores financeiros entram na API como centavos inteiros;
-- segredos/connection strings não estão versionados.
+- reembolso reduz proteção;
+- confirmação exige snapshot atual + configuração + checklist + GO atual.
+
+## Incremento 2 — concluído neste slice
+
+### Banco
+
+Criadas as entidades:
+
+- `consents`;
+- `acquisition_attributions`;
+- `crm_stage_history`;
+- `crm_interactions`;
+- `analytics_events`;
+- `assets`;
+- `asset_tags`.
+
+### Captura transacional
+
+`PostgresAcquisitionCore` implementa:
+
+1. normalização de e-mail;
+2. telefone E.164;
+3. exigência de pelo menos um contato;
+4. consentimento de privacidade obrigatório;
+5. locks transacionais por identidade;
+6. criação ou consolidação de `profile/customer_id`;
+7. bloqueio de colisão quando e-mail e telefone resolvem para perfis diferentes;
+8. registro de UTM/referral/landing/session;
+9. histórico explícito de consentimentos concedidos e negados;
+10. estágio CRM `lead` sem regredir `member/participant`;
+11. interação de captura no CRM;
+12. evento analítico `lead_created`;
+13. audit log `lead.captured`.
 
 ## Evidência automatizada mais recente
 
 GitHub Actions run:
 
-`32566538746`
+`32566983116`
 
 Resultado:
 
 - testes de domínio: PASS;
 - secret scan: PASS;
-- validação de migrations: PASS;
-- validação de documentação: PASS;
-- validação JavaScript HML inline + externo: PASS;
-- migrations do zero: PASS;
+- migrations `0001–0015`: PASS;
 - hardening/RLS: PASS;
-- bootstrap/sessão: PASS;
-- cenário econômico integrado: PASS;
-- backup/restore: PASS.
+- bootstrap/sessão HML: PASS;
+- núcleo econômico: PASS;
+- **acquisition/CRM integration: PASS**;
+- backup/restore incluindo consentimentos: PASS.
 
-## Ainda fora do escopo
+Cenários de aquisição provados:
 
-- gateway de pagamento real;
-- preço/ticket comercial definitivo;
-- clientes reais;
-- produção;
-- ticketing/QR/portaria;
-- CRM público e aquisição;
-- políticas jurídicas definitivas.
+- novo lead cria profile + atribuição + consentimentos + CRM + analytics;
+- repetição do mesmo e-mail/telefone consolida no mesmo `customer_id`;
+- captura posterior de pessoa já `member` não regride para `lead`;
+- e-mail de um perfil + telefone de outro retorna `IDENTITY_COLLISION` e faz rollback;
+- sem consentimento de privacidade, nenhum profile é criado;
+- opt-in e opt-out são persistidos explicitamente.
+
+Relatório:
+
+`relatorios/2026-08-22-INCREMENTO-2-AQUISICAO-CORE.md`
+
+## Ainda fora deste slice
+
+- endpoint público de captura;
+- home reativa;
+- lista de espera publicada;
+- painel CRM navegável;
+- pixels externos;
+- upload/gestão visual do acervo;
+- comunicação automática.
 
 ## Próximo passo
 
-# Smoke navegável + fechamento do Incremento 1
+# API pública de lead + Home/Lista de Espera HML
 
-Executar, somente com dados sintéticos, o fluxo navegável completo no HML:
+Fluxo:
 
-`criar edição → fases → configuração → custos/receita → quórum → pagamento mock → crédito → reembolso → novo pagamento → VIAVEL → checklist → GO → CONFIRMADO`
+`Visitante → formulário → API pública controlada → PostgresAcquisitionCore → profile único + consent + attribution + CRM + analytics`
 
-Depois registrar evidência final do fluxo e iniciar o próximo incremento funcional conforme `docs/09-roadmap-implementacao.md`.
+Depois:
+
+1. painel CRM básico;
+2. analytics/pixels com consentimento;
+3. acervo básico;
+4. gate `PRONTO PARA PRIMEIRO ANÚNCIO`.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**
