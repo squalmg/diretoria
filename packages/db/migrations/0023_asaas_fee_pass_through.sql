@@ -20,9 +20,13 @@ LANGUAGE plpgsql
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  -- estimated_fee_per_member representa apenas taxa absorvida pela Diretoria.
-  -- Se a taxa for integralmente repassada, o custo econômico interno é zero.
-  IF NEW.fee_pass_through THEN
+  -- estimated_fee_per_member representa somente taxa absorvida pela Diretoria.
+  -- Código legado que informa uma taxa > 0 continua, portanto, no modelo
+  -- absorvido. O modelo Asaas atual informa custo interno zero e mantém o
+  -- default fee_pass_through=true.
+  IF NEW.estimated_fee_per_member > 0 THEN
+    NEW.fee_pass_through := false;
+  ELSIF NEW.fee_pass_through THEN
     NEW.estimated_fee_per_member := 0;
   END IF;
   RETURN NEW;
@@ -35,6 +39,11 @@ BEFORE INSERT OR UPDATE OF fee_pass_through, estimated_fee_per_member
 ON event_financial_configs
 FOR EACH ROW
 EXECUTE FUNCTION enforce_event_financial_fee_policy();
+
+ALTER TABLE event_financial_configs
+  ADD CONSTRAINT event_financial_fee_policy_consistency CHECK (
+    fee_pass_through = false OR estimated_fee_per_member = 0
+  );
 
 -- O checkout passa a separar explicitamente preço-base, taxa recuperada e total.
 ALTER TABLE checkout_intents
