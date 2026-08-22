@@ -2,6 +2,7 @@ import { createSupabaseContext } from 'npm:@supabase/server@^1';
 
 const CANONICAL_ORIGIN = 'https://diretoria-hml.vercel.app';
 const LOCAL_ORIGINS = new Set(['http://localhost:3100', 'http://127.0.0.1:3100']);
+const SESSION_HOURS = 12;
 
 function originAllowed(origin: string | null): boolean {
   if (!origin) return true;
@@ -33,6 +34,18 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function randomSessionToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `hml_${hex}`;
+}
+
+function bearerToken(req: Request): string | null {
+  const header = req.headers.get('authorization') ?? '';
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  return match?.[1]?.trim() || null;
+}
+
 function routePath(req: Request): string {
   const pathname = new URL(req.url).pathname;
   const marker = '/diretoria-admin-api';
@@ -40,6 +53,52 @@ function routePath(req: Request): string {
   if (index < 0) return pathname;
   const remainder = pathname.slice(index + marker.length);
   return remainder || '/';
+}
+
+async function serverContext(req: Request) {
+  const { data: ctx, error } = await createSupabaseContext(req, { auth: 'none' });
+  if (error || !ctx) {
+    return { response: json(req, { ok: false, code: error?.code ?? 'CONTEXT_ERROR', message: error?.message ?? 'Server context unavailable' }, error?.status ?? 503) } as const;
+  }
+  return { ctx } as const;
+}
+
+async function hmlSessionContext(req: Request) {
+  const token = bearerToken(req);
+  if (!token?.startsWith('hml_')) return null;
+
+  const server = await serverContext(req);
+  if ('response' in server) return server;
+  const tokenHash = await sha256Hex(token);
+  const now = new Date().toISOString();
+  const { data, error } = await server.ctx.supabaseAdmin
+    .from('hml_admin_sessions')
+    .select('id,expires_at')
+    .eq('token_hash', tokenHash)
+    .is('revoked_at', null)
+    .gt('expires_at', now)
+    .maybeSingle();
+
+  if (error) {
+    return { response: json(req, { ok: false, code: 'HML_SESSION_QUERY_FAILED' }, 500) } as const;
+  }
+  if (!data) {
+    return { response: json(req, { ok: false, code: 'HML_SESSION_INVALID' }, 401) } as const;
+  }
+
+  await server.ctx.supabaseAdmin
+    .from('hml_admin_sessions')
+    .update({ last_seen_at: now })
+    .eq('id', data.id);
+
+  return {
+    ctx: server.ctx,
+    principal: {
+      mode: 'hml_session' as const,
+      sessionId: data.id as string,
+      expiresAt: data.expires_at as string,
+    },
+  } as const;
 }
 
 async function userContext(req: Request) {
@@ -51,10 +110,13 @@ async function userContext(req: Request) {
   if (!email) {
     return { response: json(req, { ok: false, code: 'EMAIL_CLAIM_REQUIRED' }, 403) } as const;
   }
-  return { ctx, email } as const;
+  return { ctx, email, principal: { mode: 'supabase_user' as const, email } } as const;
 }
 
 async function adminContext(req: Request) {
+  const hml = await hmlSessionContext(req);
+  if (hml) return hml;
+
   const auth = await userContext(req);
   if ('response' in auth) return auth;
   const { data, error } = await auth.ctx.supabaseAdmin
@@ -73,14 +135,12 @@ async function adminContext(req: Request) {
 }
 
 async function publicHealth(req: Request): Promise<Response> {
-  const { data: ctx, error } = await createSupabaseContext(req, { auth: 'none' });
-  if (error || !ctx) {
-    return json(req, { ok: false, service: 'diretoria-admin-api', database: 'unavailable', code: error?.code ?? 'CONTEXT_ERROR' }, 503);
-  }
-  const { count, error: countError } = await ctx.supabaseAdmin
+  const server = await serverContext(req);
+  if ('response' in server) return server.response;
+  const { count, error } = await server.ctx.supabaseAdmin
     .from('events')
     .select('id', { count: 'exact', head: true });
-  if (countError) {
+  if (error) {
     return json(req, { ok: false, service: 'diretoria-admin-api', database: 'unavailable', code: 'DATABASE_QUERY_FAILED' }, 503);
   }
   return json(req, {
@@ -89,12 +149,71 @@ async function publicHealth(req: Request): Promise<Response> {
     environment: 'hml',
     database: 'connected',
     eventCount: count ?? 0,
-    authorization: 'supabase-auth-plus-hml-allowlist',
+    authorization: 'temporary-hml-session-or-supabase-auth-allowlist',
     writes: 'not-exposed-in-this-slice',
   });
 }
 
-async function bootstrap(req: Request): Promise<Response> {
+async function bootstrapSession(req: Request): Promise<Response> {
+  const server = await serverContext(req);
+  if ('response' in server) return server.response;
+
+  let payload: { token?: string };
+  try {
+    payload = await req.json();
+  } catch {
+    return json(req, { ok: false, code: 'INVALID_JSON' }, 400);
+  }
+
+  const bootstrapToken = String(payload.token ?? '').trim();
+  if (bootstrapToken.length < 24 || bootstrapToken.length > 256) {
+    return json(req, { ok: false, code: 'BOOTSTRAP_TOKEN_INVALID' }, 400);
+  }
+
+  const bootstrapHash = await sha256Hex(bootstrapToken);
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const { data: consumed, error: consumeError } = await server.ctx.supabaseAdmin
+    .from('hml_bootstrap_tokens')
+    .update({ used_at: nowIso })
+    .eq('token_hash', bootstrapHash)
+    .is('used_at', null)
+    .gt('expires_at', nowIso)
+    .select('token_hash')
+    .maybeSingle();
+
+  if (consumeError) {
+    return json(req, { ok: false, code: 'BOOTSTRAP_CONSUME_FAILED' }, 500);
+  }
+  if (!consumed) {
+    return json(req, { ok: false, code: 'BOOTSTRAP_TOKEN_REJECTED' }, 403);
+  }
+
+  const sessionToken = randomSessionToken();
+  const sessionHash = await sha256Hex(sessionToken);
+  const expiresAt = new Date(now.getTime() + SESSION_HOURS * 60 * 60 * 1000).toISOString();
+  const { error: sessionError } = await server.ctx.supabaseAdmin
+    .from('hml_admin_sessions')
+    .insert({
+      token_hash: sessionHash,
+      bootstrap_token_hash: bootstrapHash,
+      expires_at: expiresAt,
+      last_seen_at: nowIso,
+    });
+
+  if (sessionError) {
+    return json(req, { ok: false, code: 'HML_SESSION_CREATE_FAILED' }, 500);
+  }
+
+  return json(req, {
+    ok: true,
+    sessionToken,
+    expiresAt,
+    scope: 'hml-admin-readonly',
+  });
+}
+
+async function legacyBootstrap(req: Request): Promise<Response> {
   const auth = await userContext(req);
   if ('response' in auth) return auth.response;
   let payload: { token?: string };
@@ -112,16 +231,18 @@ async function bootstrap(req: Request): Promise<Response> {
     p_token_hash: tokenHash,
     p_email_normalized: auth.email,
   });
-  if (error) {
-    return json(req, { ok: false, code: 'BOOTSTRAP_RPC_FAILED' }, 500);
-  }
-  if (data !== true) {
-    return json(req, { ok: false, code: 'BOOTSTRAP_TOKEN_REJECTED' }, 403);
-  }
+  if (error) return json(req, { ok: false, code: 'BOOTSTRAP_RPC_FAILED' }, 500);
+  if (data !== true) return json(req, { ok: false, code: 'BOOTSTRAP_TOKEN_REJECTED' }, 403);
   return json(req, { ok: true, allowed: true, email: auth.email });
 }
 
 async function me(req: Request): Promise<Response> {
+  const hml = await hmlSessionContext(req);
+  if (hml) {
+    if ('response' in hml) return hml.response;
+    return json(req, { ok: true, allowed: true, authMode: 'hml_session', expiresAt: hml.principal.expiresAt });
+  }
+
   const auth = await userContext(req);
   if ('response' in auth) return auth.response;
   const { data, error } = await auth.ctx.supabaseAdmin
@@ -131,7 +252,18 @@ async function me(req: Request): Promise<Response> {
     .eq('enabled', true)
     .maybeSingle();
   if (error) return json(req, { ok: false, code: 'ALLOWLIST_QUERY_FAILED' }, 500);
-  return json(req, { ok: true, email: auth.email, allowed: Boolean(data?.enabled) });
+  return json(req, { ok: true, email: auth.email, allowed: Boolean(data?.enabled), authMode: 'supabase_user' });
+}
+
+async function revokeSession(req: Request): Promise<Response> {
+  const hml = await hmlSessionContext(req);
+  if (!hml || 'response' in hml) return hml && 'response' in hml ? hml.response : json(req, { ok: false, code: 'HML_SESSION_REQUIRED' }, 401);
+  const { error } = await hml.ctx.supabaseAdmin
+    .from('hml_admin_sessions')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', hml.principal.sessionId);
+  if (error) return json(req, { ok: false, code: 'HML_SESSION_REVOKE_FAILED' }, 500);
+  return json(req, { ok: true, revoked: true });
 }
 
 async function listEvents(req: Request): Promise<Response> {
@@ -200,15 +332,15 @@ async function eventSummary(req: Request, eventId: string): Promise<Response> {
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('origin');
-  if (origin && !originAllowed(origin)) {
-    return json(req, { ok: false, code: 'ORIGIN_NOT_ALLOWED' }, 403);
-  }
+  if (origin && !originAllowed(origin)) return json(req, { ok: false, code: 'ORIGIN_NOT_ALLOWED' }, 403);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req) });
 
   const path = routePath(req);
   if (req.method === 'GET' && (path === '/' || path === '/health')) return publicHealth(req);
+  if (req.method === 'POST' && path === '/session/bootstrap') return bootstrapSession(req);
+  if (req.method === 'POST' && path === '/session/revoke') return revokeSession(req);
   if (req.method === 'GET' && path === '/me') return me(req);
-  if (req.method === 'POST' && path === '/bootstrap') return bootstrap(req);
+  if (req.method === 'POST' && path === '/bootstrap') return legacyBootstrap(req);
   if (req.method === 'GET' && path === '/events') return listEvents(req);
 
   const summaryMatch = /^\/events\/([0-9a-f-]{36})\/summary$/i.exec(path);
