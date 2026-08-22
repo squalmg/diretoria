@@ -1,0 +1,26 @@
+name: payment-provider-contract
+
+on:
+  pull_request:
+    paths:
+      - 'packages/payments/**'
+      - 'scripts/integration-payment-provider-contract.ts'
+      - 'scripts/check-payment-provider-contract.mjs'
+      - '.github/workflows/payment-provider-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  payment-provider-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Static provider guard
+        run: |
+          node --check packages/payments/provider-contract.ts
+          node scripts/check-payment-provider-contract.mjs
+      - name: Provider contract integration
+        run: node --experimental-strip-types scripts/integration-payment-provider-contract.ts
