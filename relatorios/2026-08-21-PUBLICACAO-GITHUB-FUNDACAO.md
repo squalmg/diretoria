@@ -32,18 +32,46 @@ Os documentos canônicos maiores foram conferidos na árvore Git remota e mantiv
 - Arquitetura Técnica: 10.875 bytes;
 - Plano HML/Testes: 6.768 bytes.
 
-## CI
+## CI remoto
 
-O workflow `.github/workflows/ci.yml` executa:
+O PR #1 disparou o workflow `ci` no GitHub Actions.
 
-1. Node 24.19;
-2. testes de domínio e verificações estáticas;
-3. PostgreSQL 18.6;
-4. migration `0001_core_foundation.sql` do zero;
-5. seed RBAC;
-6. verificação da existência das tabelas centrais.
+Run:
 
-Como o conector atual não retorna runs de `push`, foi criada a branch `chore/foundation-status` e será aberto PR para exercitar e inspecionar o fluxo `pull_request` do mesmo workflow.
+`32542061215`
+
+Job:
+
+`foundation`
+
+Resultado:
+
+# SUCCESS
+
+Etapas aprovadas:
+
+1. Set up job;
+2. Initialize containers;
+3. checkout;
+4. Node setup;
+5. Domain and static checks;
+6. Apply migrations from zero;
+7. Assert core tables;
+8. encerramento dos containers.
+
+O runner iniciou PostgreSQL 18.6 e aplicou:
+
+- `0001_core_foundation.sql`;
+- `0002_seed_rbac.sql`.
+
+Depois verificou com sucesso as tabelas centrais:
+
+- `profiles`;
+- `events`;
+- `payments`;
+- `credits`;
+- `quorum_snapshots`;
+- `audit_logs`.
 
 ## Correção pós-publicação
 
@@ -51,16 +79,22 @@ Foi corrigido `AGENTS.md` para apontar explicitamente para os caminhos reais em 
 
 ## Regra de promoção
 
-A publicação no GitHub não equivale a HML aprovado.
+A publicação no GitHub e o CI verde **não equivalem a HML-G0 concluído**.
 
-HML-G0 só poderá ser considerado concluído depois de CI verde e das evidências exigidas pelo plano de homologação.
+O plano de homologação ainda exige um HML persistente operacional e validação básica de backup/restore.
+
+Portanto:
+
+- código/migrations remotos: APROVADOS;
+- CI: APROVADO;
+- HML-G0: PENDENTE.
 
 ## Próximo passo
 
-- abrir PR da branch `chore/foundation-status`;
-- inspecionar CI;
-- corrigir falhas se houver;
-- mergear;
+- concluir CI do último commit documental;
+- mergear PR #1;
+- provisionar HML persistente;
+- validar backup/restore;
 - registrar HML-G0;
 - iniciar Incremento 1.
 
