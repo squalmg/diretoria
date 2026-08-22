@@ -1,9 +1,11 @@
 import { createSupabaseContext } from 'npm:@supabase/server@^1';
 import { PostgresMemberAccounts } from 'https://raw.githubusercontent.com/squalmg/diretoria/1ede7b88b0f68269aeb4ea0a55948f8331766fa6/packages/db/src/member-accounts.ts';
+import { PostgresClubCheckout } from 'https://raw.githubusercontent.com/squalmg/diretoria/712a039d2109f5dcfe1c5aee8bae1722ac4f9d1b/packages/db/src/club-checkout.ts';
 
 const PUBLIC_HML_ORIGIN = 'https://diretoria-public-hml.vercel.app';
 const LOCAL_ORIGINS = new Set(['http://localhost:3200', 'http://127.0.0.1:3200']);
-let coreInstance: PostgresMemberAccounts | null = null;
+let memberCoreInstance: PostgresMemberAccounts | null = null;
+let checkoutCoreInstance: PostgresClubCheckout | null = null;
 
 function originAllowed(origin: string | null): boolean {
   if (!origin) return true;
@@ -34,12 +36,20 @@ function routePath(req: Request): string {
   return remainder || '/';
 }
 
-function core(): PostgresMemberAccounts {
-  if (coreInstance) return coreInstance;
+function databaseUrl(): string {
   const connectionString = Deno.env.get('SUPABASE_DB_URL');
   if (!connectionString) throw new Error('SUPABASE_DB_URL_REQUIRED');
-  coreInstance = new PostgresMemberAccounts(connectionString);
-  return coreInstance;
+  return connectionString;
+}
+
+function memberCore(): PostgresMemberAccounts {
+  if (!memberCoreInstance) memberCoreInstance = new PostgresMemberAccounts(databaseUrl());
+  return memberCoreInstance;
+}
+
+function checkoutCore(): PostgresClubCheckout {
+  if (!checkoutCoreInstance) checkoutCoreInstance = new PostgresClubCheckout(databaseUrl());
+  return checkoutCoreInstance;
 }
 
 async function authenticated(req: Request) {
@@ -69,10 +79,15 @@ function safeError(req: Request, error: unknown): Response {
   const raw = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
   const code = raw.split(':')[0].replace(/[^A-Z0-9_]/gi, '_').toUpperCase() || 'UNKNOWN_ERROR';
   if (code.includes('NOT_FOUND')) return json(req, { ok: false, code }, 404);
-  if (code.includes('VERIFICATION_REQUIRED') || code.includes('IDENTITY_CONFLICT') || code.includes('ALREADY_HAS_ACCOUNT') || code.includes('NOT_ACTIVE')) {
-    return json(req, { ok: false, code }, 409);
-  }
-  if (code.includes('INVALID') || code.includes('REQUIRED')) return json(req, { ok: false, code }, 400);
+  if (
+    code.includes('VERIFICATION_REQUIRED') ||
+    code.includes('IDENTITY_CONFLICT') ||
+    code.includes('ALREADY_HAS_ACCOUNT') ||
+    code.includes('NOT_ACTIVE') ||
+    code.includes('PHASE_BLOCKED') ||
+    code.includes('IDEMPOTENCY_CONFLICT')
+  ) return json(req, { ok: false, code }, 409);
+  if (code.includes('INVALID') || code.includes('REQUIRED') || code.includes('TOO_LONG')) return json(req, { ok: false, code }, 400);
   return json(req, { ok: false, code: 'MEMBER_API_ERROR' }, 500);
 }
 
@@ -82,12 +97,30 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req) });
 
   const path = routePath(req);
+  const url = new URL(req.url);
+
   if (req.method === 'GET' && (path === '/' || path === '/health')) {
     try {
-      const result = await core().health();
-      return json(req, { ok: true, service: 'diretoria-member-api', environment: 'hml', database: result.database, payments: 'disabled' });
+      const [memberHealth, checkoutHealth] = await Promise.all([memberCore().health(), checkoutCore().health()]);
+      return json(req, {
+        ok: true,
+        service: 'diretoria-member-api',
+        environment: 'hml',
+        database: memberHealth.database === 'connected' && checkoutHealth.database === 'connected' ? 'connected' : 'unavailable',
+        checkoutProvider: 'unconfigured',
+        payments: 'disabled',
+      });
     } catch {
       return json(req, { ok: false, service: 'diretoria-member-api', database: 'unavailable' }, 503);
+    }
+  }
+
+  if (req.method === 'GET' && path === '/offer') {
+    try {
+      const offer = await checkoutCore().offerBySlug(url.searchParams.get('slug') ?? '');
+      return json(req, { ok: true, offer });
+    } catch (error) {
+      return safeError(req, error);
     }
   }
 
@@ -96,7 +129,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (req.method === 'POST' && path === '/account/bootstrap') {
-      const account = await core().ensureAccount({
+      const account = await memberCore().ensureAccount({
         providerSubject: auth.subject,
         email: auth.email,
         phone: auth.phone,
@@ -108,13 +141,36 @@ Deno.serve(async (req: Request) => {
     }
 
     if (req.method === 'GET' && path === '/me') {
-      const account = await core().getAccount(auth.subject);
+      const account = await memberCore().getAccount(auth.subject);
       return json(req, { ok: true, account });
     }
 
     if (req.method === 'GET' && path === '/wallet') {
-      const wallet = await core().wallet(auth.subject);
+      const wallet = await memberCore().wallet(auth.subject);
       return json(req, { ok: true, wallet });
+    }
+
+    if (req.method === 'POST' && path === '/checkout-intents') {
+      const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+      const intent = await checkoutCore().createIntent({
+        providerSubject: auth.subject,
+        eventId: String(body.eventId ?? ''),
+        idempotencyKey: String(body.idempotencyKey ?? ''),
+        policyVersion: body.policyVersion == null ? null : String(body.policyVersion),
+      });
+      return json(req, {
+        ok: true,
+        intent,
+        paymentEnabled: false,
+        checkoutProvider: 'unconfigured',
+        nextAction: 'configure_gateway_before_payment',
+      }, 201);
+    }
+
+    const intentMatch = /^\/checkout-intents\/([0-9a-f-]{36})$/i.exec(path);
+    if (req.method === 'GET' && intentMatch) {
+      const intent = await checkoutCore().getIntent(auth.subject, intentMatch[1]);
+      return json(req, { ok: true, intent, paymentEnabled: false, checkoutProvider: 'unconfigured' });
     }
 
     return json(req, { ok: false, code: 'NOT_FOUND', method: req.method, path }, 404);

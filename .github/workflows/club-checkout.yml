@@ -1,0 +1,67 @@
+name: club-checkout
+
+on:
+  pull_request:
+    paths:
+      - 'packages/db/migrations/**'
+      - 'packages/db/src/club-checkout.ts'
+      - 'scripts/integration-club-checkout.ts'
+      - 'supabase/functions/diretoria-member-api/**'
+      - 'apps/public-hml/club.*'
+      - '.github/workflows/club-checkout.yml'
+  workflow_dispatch:
+
+jobs:
+  club-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: diretoria
+          POSTGRES_USER: diretoria
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U diretoria -d diretoria"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Install runtime dependencies
+        run: npm install --no-audit --no-fund
+      - name: Static contract checks
+        run: |
+          node --check packages/db/src/club-checkout.ts
+          node --check apps/public-hml/club.js
+          grep -q "provider: 'unconfigured'" packages/db/src/club-checkout.ts
+          grep -q "paymentEnabled: false" packages/db/src/club-checkout.ts
+          grep -q "paymentEnabled: false" supabase/functions/diretoria-member-api/index.ts
+          grep -q "pagamento desabilitado" apps/public-hml/club.js
+          if grep -Eqi "stripe|mercadopago|asaas|pagarme|paymentintent|client_secret|pix.*qr|card.?number" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
+            echo "A real payment provider/capability was introduced before gateway selection."
+            exit 1
+          fi
+      - name: Apply migrations from zero
+        env:
+          PGPASSWORD: ci_only_password
+        run: |
+          for f in packages/db/migrations/*.sql; do
+            psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Club checkout integration
+        env:
+          DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
+        run: node --experimental-strip-types scripts/integration-club-checkout.ts
+      - name: Assert no direct payment FK from checkout intents
+        env:
+          PGPASSWORD: ci_only_password
+        run: |
+          count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.columns where table_schema='public' and table_name='checkout_intents' and column_name='payment_id';")
+          test "$count" = "0"
