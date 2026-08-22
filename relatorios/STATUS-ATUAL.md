@@ -1,131 +1,252 @@
 # STATUS ATUAL — DIRETORIA
 
 **Data:** 22/08/2026  
-**Fase:** Incremento 2 — Reativação e Aquisição  
-**Estado:** **INFRAESTRUTURA TÉCNICA DO GATE PRÉ-ANÚNCIO CONCLUÍDA; PRIMEIRO ANÚNCIO AINDA BLOQUEADO POR DEPENDÊNCIAS EXTERNAS**
+**Fase:** Incremento 3 — Club e preparação para pagamento real  
+**Estado:** **FUNDAÇÃO TÉCNICA PRÉ-PAGAMENTO CONCLUÍDA; DINHEIRO REAL CONTINUA BLOQUEADO POR DECISÕES EXTERNAS**
 
 ## Repositório
 
 - GitHub: `squalmg/diretoria`;
 - branch principal: `main`;
-- merge do gate pré-anúncio: `4364fd8d6a6dc038740a04b57630edd44774f724`;
-- HML-G0: **APROVADO**;
-- core econômico: **APROVADO**;
-- aquisição/CRM: **APROVADOS**;
-- Admin HML econômico/CRM/pré-anúncio: **PUBLICADOS**;
-- Public HML + lista de espera: **PUBLICADOS**.
+- Fundação/HML-G0: **APROVADOS**;
+- núcleo econômico: **APROVADO**;
+- Incremento 2 técnico — aquisição/CRM/pré-anúncio: **CONCLUÍDO**;
+- Incremento 3: **em andamento, com conta/Club/checkout-intent/notificações/policies já estruturados**.
 
-## Gate técnico pré-anúncio concluído
+Merges recentes do Incremento 3:
 
-### Acervo e direitos
-
-- migration `0017_asset_catalog_metadata` aplicada no Supabase HML;
-- catálogo de metadados de acervo;
-- evento histórico/data de captura;
-- fonte/crédito e URL de origem;
-- status de direitos e permissão de uso;
-- tags;
-- alterações críticas auditadas;
-- Admin HML `/pre-ad.html` publicado.
-
-### Analytics first-party
-
-- leads por período;
-- distribuição diária;
-- origem/source;
-- campanha;
-- consentimentos atuais;
-- pressão de rate-limit 24h;
-- sem dependência de pixel externo.
-
-### Consent mode
-
-Public HML mantém:
-
-- `analytics=false` por padrão;
-- `marketing=false` por padrão;
-- GA4 ID = `null`;
-- Meta Pixel ID = `null`;
-- nenhum loader de terceiros ativo sem configuração/consentimento.
-
-### Observabilidade
-
-Workflow `hml-health-monitor` validado e verde.
+- PR #13 — autenticação pública + carteira HML: `8b2c9dfb3a8d43a63a69bf949981248f704b3cc2`;
+- PR #14 — oferta Club + checkout intent neutro: `ebc19e8357435cb91b634f0eef1e3b5f6c2e8dff`;
+- PR #15 — fundação provider-neutral de notificações: `f9402af6c33c8fbb70f5613d92c80786d8121611`;
+- PR #16 — contrato seguro de gateway provider-neutral: `84460ea96d8ece15b13639113c8c3261bfe0686b`;
+- PR #17 — políticas versionadas + gate de aceite: `bd9c4fddd87f0437f801f9dfb546ff109dfacaa9`.
 
 ## HML canônico
-
-### Admin
-
-- URL: `https://diretoria-hml.vercel.app`;
-- `/`: HTTP 200;
-- `/writes.html`: HTTP 200, console econômica completa;
-- `/crm.html`: HTTP 200, CRM completo;
-- `/pre-ad.html`: HTTP 200, gate técnico pré-anúncio;
-- `/api/edge-health`: HTTP 200, banco conectado.
-
-### Public
-
-- URL: `https://diretoria-public-hml.vercel.app`;
-- `consent.js`: HTTP 200 e deny-by-default.
 
 ### Supabase
 
 - projeto/ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
-- migrations aplicadas: `0001–0017`;
+- migrations aplicadas: `0001–0022`;
 - Edge `diretoria-admin-api`: ACTIVE;
 - Edge `diretoria-admin-write-api`: ACTIVE;
-- Edge `diretoria-crm-api`: ACTIVE;
 - Edge `diretoria-public-api`: ACTIVE;
-- Edge `diretoria-pre-ad-api`: ACTIVE.
+- Edge `diretoria-crm-api`: ACTIVE;
+- Edge `diretoria-pre-ad-api`: ACTIVE;
+- Edge `diretoria-member-api`: ACTIVE.
 
-## Evidências de CI do último head do PR #11
+### Admin HML
 
-Commit:
+- URL: `https://diretoria-hml.vercel.app`;
+- `/`: portal HML;
+- `/writes.html`: console econômica;
+- `/crm.html`: CRM / Perfil 360;
+- `/pre-ad.html`: analytics/acervo/gate pré-anúncio.
 
-`23e2970311713a762aa31e92f08cba60c14a3421`
+### Public HML
 
-Workflows:
+- URL: `https://diretoria-public-hml.vercel.app`;
+- `/`: reativação + lista de espera + consent mode;
+- `/account.html`: cadastro/login/recuperação + carteira read-only;
+- `/club.html`: oferta Club HML e preparação de checkout intent;
+- `/api/health`: health público.
 
-- `ci`: SUCCESS;
-- `pre-ad-gate`: SUCCESS;
-- `crm-read`: SUCCESS;
-- `public-leads`: SUCCESS;
-- `hml-health-monitor`: SUCCESS.
+O Public HML continua marcado `noindex,nofollow` e não representa produção.
 
-## Advisors Supabase
+# O que já existe no Incremento 3
 
-Segurança:
+## 1. Conta pública / customer_id
 
-- sem ERROR/WARN novo;
-- `rls_enabled_no_policy` permanece INFO e intencional no modelo default-deny do HML.
+- Supabase Auth HML;
+- cadastro por e-mail/senha;
+- login;
+- recuperação de senha;
+- identidade externa única por `auth_provider + provider_subject`;
+- vínculo seguro `auth user → profile/customer_id → users`;
+- lead existente só pode ser assumido por identidade compatível/verificada;
+- conflitos de identidade bloqueados;
+- criação de conta não promove lifecycle para membro;
+- auditoria de criação/vínculo.
 
-Performance:
+## 2. Minha Diretoria / carteira
 
-- somente `unused_index` INFO, esperado em ambiente de homologação com pouca carga.
+- dados da conta;
+- lifecycle atual;
+- créditos existentes;
+- histórico de pagamentos HML;
+- ticketing explicitamente ainda não implementado;
+- nenhum QR fabricado pela interface.
 
-## Dependências externas que ainda bloqueiam primeiro anúncio real
+## 3. Oferta Diretoria Club
 
-1. política/textos jurídicos finais;
-2. IDs reais Meta/Google e demais plataformas aprovadas;
-3. domínio público definitivo;
-4. arquivos reais do acervo;
-5. confirmação de direitos de uso de cada arquivo utilizado;
-6. criativos/campanhas finais.
+`PostgresClubCheckout` e `/club.html`:
+
+- oferta somente em `FORMACAO`, `QUORUM_EM_ANDAMENTO` ou `VIAVEL`;
+- valor vem de `event_financial_configs.founder_ticket_gross`;
+- versão financeira fica explícita;
+- sem config/preço válido, oferta bloqueada;
+- antes de confirmação, produto continua sendo **crédito**, não ingresso.
+
+## 4. Checkout intent
+
+Migration `0019_checkout_intents`:
+
+- profile/customer_id;
+- edição;
+- versão financeira;
+- preço congelado;
+- idempotency key;
+- policy version/fingerprint possível;
+- provider default `unconfigured`;
+- status inicial `draft`.
+
+Propriedade crítica validada:
+
+> criar uma checkout intent NÃO cria `payment`, `credit`, membership ou capital protegido.
+
+## 5. Contrato de gateway
+
+`packages/payments/provider-contract.ts`:
+
+- `PaymentProviderAdapter`;
+- capabilities Pix/card/refund;
+- criação de checkout normalizada;
+- webhook normalizado;
+- refund normalizado;
+- valores em unidade mínima (`bigint`);
+- `DisabledPaymentProvider` como fallback;
+- registry fail-closed;
+- adapter sem verificação de assinatura é recusado;
+- webhook divergente em checkout/valor/moeda/provider/assinatura é bloqueado antes do core econômico.
+
+**Nenhum gateway concreto foi escolhido ou acoplado.**
+
+## 6. Notificações transacionais
+
+Migrations `0020–0021`:
+
+- templates versionados;
+- um template ativo por code/channel;
+- fila de notificações;
+- variables;
+- dedupe;
+- agendamento;
+- tentativas;
+- `FOR UPDATE SKIP LOCKED` para claim concorrente;
+- provider default `unconfigured`;
+- fila transacional não aceita template marketing;
+- nenhuma mensagem externa é enviada sem provider configurado.
+
+## 7. Políticas e aceites
+
+Migration `0022_policy_acceptance_gate`:
+
+- documentos versionados;
+- SHA-256 do conteúdo;
+- `draft / active / retired`;
+- uma versão ativa por code;
+- conteúdo ativo/retirado é imutável;
+- aceite por profile + documento + contexto;
+- aceite append-only;
+- bundle/fingerprint da política vigente;
+- nova versão ativa faz o aceite antigo deixar de satisfazer o gate corrente.
+
+**Nenhum texto jurídico real foi criado ou ativado.**
+
+# Estado real do HML após as promoções
+
+Consulta em 22/08/2026:
+
+- checkout intents: **0**;
+- notification templates: **0**;
+- notifications: **0**;
+- notification attempts: **0**;
+- policy documents: **0**;
+- policy acceptances: **0**;
+- pagamentos com gateway diferente de `mock`: **0**.
+
+Isso confirma que a infraestrutura foi promovida sem efeito comercial real.
+
+# Gates técnicos já comprovados
+
+- pagamentos mock confirmados apenas no backend;
+- webhook mock idempotente;
+- crédito válido nasce de pagamento confirmado;
+- reembolso reduz capital protegido;
+- quórum recalcula;
+- `VIAVEL != CONFIRMADO`;
+- GO/NO-GO obrigatório;
+- bar esperado não financia viabilidade;
+- checkout intent não é pagamento;
+- gateway desconhecido falha fechado;
+- adapter real futuro precisa verificar assinatura;
+- política vigente precisa ser aceita para o futuro gate de pagamento;
+- notificações ficam na fila sem provider.
+
+# Dependências externas que agora bloqueiam o primeiro pagamento real
+
+## Obrigatórias
+
+1. **Gateway definitivo** e credenciais sandbox;
+2. **preço fundador/comercial definitivo**;
+3. **política jurídica final**:
+   - termos do Club;
+   - política de não atingimento;
+   - reembolso/rollover;
+   - privacidade/marketing quando aplicável;
+4. **provedor/canal transacional** para WhatsApp/e-mail, se for obrigatório no primeiro pagamento;
+5. textos finais da oferta Club.
 
 Nenhuma dessas decisões deve ser inventada no código.
 
-## Próximo trabalho técnico possível
+# Ainda bloqueando o primeiro anúncio real
 
-Como o Incremento 2 atingiu o limite técnico sem decisões externas, o desenvolvimento pode avançar em paralelo para o **Incremento 3 — Club e pagamento real**, sem ativar pagamento real ainda.
+- política/textos jurídicos finais;
+- IDs Meta/Google aprovados;
+- domínio público definitivo;
+- arquivos reais do acervo e direitos de uso;
+- criativos/campanhas finais.
 
-Primeiro slice recomendado:
+# Próximo passo de desenvolvimento após decisões externas
 
-1. autenticação pública HML;
-2. vínculo `auth user → profile/customer_id → users`;
-3. área inicial do membro;
-4. carteira read-only de créditos/ingressos;
-5. testes de cadastro/login/recuperação em HML;
-6. nenhuma oferta/preço/gateway real até as respectivas decisões estarem fechadas.
+## Gateway sandbox
+
+Quando o gateway for escolhido:
+
+1. implementar adapter aderente a `PaymentProviderAdapter`;
+2. configurar secrets somente no HML;
+3. criar cobrança sandbox a partir de `checkout_intent`;
+4. validar assinatura do webhook;
+5. normalizar evento;
+6. conferir checkout/valor/moeda/provider;
+7. criar/atualizar `payment` no backend;
+8. apenas `paid` gera crédito válido;
+9. recalcular quórum;
+10. enfileirar notificação transacional;
+11. testar replay de webhook, refund e falhas;
+12. somente após todos os gates avaliar produção.
+
+## Policy gate
+
+Antes da primeira cobrança real:
+
+1. inserir textos reais como `draft`;
+2. revisar juridicamente/comercialmente;
+3. ativar versões aprovadas;
+4. exibir o bundle vigente no checkout;
+5. registrar aceite;
+6. backend revalidar o fingerprint/aceite antes de criar cobrança.
+
+# Progresso macro
+
+- Incremento 0 — Fundação: **concluído**;
+- Incremento 1 — Núcleo econômico: **concluído**;
+- Incremento 2 — Reativação/aquisição técnico: **concluído**;
+- Incremento 3 — Club/pagamento: **fundação pré-pagamento concluída; integração real bloqueada por decisões externas**;
+- Incremento 4 — Confirmação/venda pública/ticketing: **ainda não iniciado como slice completo**;
+- Incremento 5 — Produção/financeiro: **não iniciado**;
+- Incremento 6 — Event Day: **não iniciado**;
+- Incremento 7 — Bar/fechamento: **não iniciado**;
+- Incremento 8 — Retenção: **não iniciado**.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**
