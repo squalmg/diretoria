@@ -20,7 +20,7 @@ Não inventar decisões pendentes durante implementação. Quando uma decisão f
 | DEC-012 | Política de menores | ABERTA | Não definida |
 | DEC-013 | Modelo final de bar | ABERTA | Bar separado da viabilidade; operação final não definida |
 | DEC-014 | Parceiros iniciais | ABERTA | Não definidos |
-| DEC-015 | Stack/provedores definitivos | PARCIAL | PostgreSQL + arquitetura modular recomendados; provedores abertos |
+| DEC-015 | Stack/provedores definitivos | PARCIAL | PostgreSQL + arquitetura modular definidos; HML usa Supabase + Vercel; produção continua aberta |
 | DEC-016 | Provedor WhatsApp | ABERTA | Adapter previsto |
 | DEC-017 | Provedor de e-mail | ABERTA | Adapter previsto |
 | DEC-018 | Queue/cache | ABERTA | Componente necessário; fornecedor aberto |
@@ -31,6 +31,19 @@ Não inventar decisões pendentes durante implementação. Quando uma decisão f
 | DEC-023 | Contingência padrão | ABERTA | Parametrizável; percentual final por edição |
 | DEC-024 | Peso de patrocínio contratado não pago | ABERTA | Pode ser configurável; política final pendente |
 | DEC-025 | Tolerância de conciliação | ABERTA | Divergências sempre registradas; tolerância ainda não definida |
+| DEC-026 | Provedores do HML | DECIDIDA | Banco: Supabase `diretoria-hml` em `sa-east-1`; aplicação: Vercel `diretoria-hml` |
+
+# DEC-026 — Provedores do HML
+
+**Status:** DECIDIDA  
+**Data:** 21/08/2026  
+**Decisão:** usar Supabase como PostgreSQL persistente do HML e Vercel como superfície persistente da aplicação HML.  
+**Supabase ref:** `heckakjcpwomoucobtau`  
+**Vercel project id:** `prj_CSbGzOVsvIkkJLosiemlHmvcG7XV`  
+**Região Supabase:** `sa-east-1`  
+**URL HML:** `https://diretoria-hml.vercel.app`  
+**Motivo:** separar homologação de produção, manter PostgreSQL real, migrations verificáveis, URL persistente e capacidade de testar sem tocar em outros projetos.  
+**Impacto:** HML-G0 pode ser encerrado; esta decisão não define automaticamente os provedores de produção.
 
 # Como registrar uma decisão
 
