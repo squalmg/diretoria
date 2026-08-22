@@ -43,11 +43,11 @@ jobs:
         env:
           PGPASSWORD: ci_only_password
         run: |
-          core_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('profiles','events','payments','credits','refunds','quorum_snapshots','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens');")
-          test "$core_count" = "9"
+          core_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from information_schema.tables where table_schema='public' and table_name in ('profiles','events','payments','credits','refunds','quorum_snapshots','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions');")
+          test "$core_count" = "10"
 
-          rls_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens');")
-          test "$rls_count" = "26"
+          rls_count=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions');")
+          test "$rls_count" = "27"
 
           user_roles_pk=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_constraint where conrelid='public.user_roles'::regclass and contype='p';")
           test "$user_roles_pk" = "1"
@@ -57,7 +57,7 @@ jobs:
 
           bootstrap_security=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='hml_consume_bootstrap' and p.prosecdef=true and coalesce(array_to_string(p.proconfig,','),'') like '%search_path=public, pg_temp%';")
           test "$bootstrap_security" = "1"
-      - name: Bootstrap token integration
+      - name: Bootstrap token and session integration
         env:
           PGPASSWORD: ci_only_password
         run: |
@@ -74,6 +74,14 @@ jobs:
 
           allowlisted=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from hml_admin_allowlist where email_normalized='hml-ci@example.invalid' and enabled=true;")
           test "$allowlisted" = "1"
+
+          psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 <<'SQL'
+          insert into hml_admin_sessions(token_hash, bootstrap_token_hash, expires_at, last_seen_at)
+          values ('ci-session-hash', 'ci-bootstrap-hash', now() + interval '12 hours', now());
+          SQL
+
+          active_session=$(psql -h localhost -U diretoria -d diretoria -Atc "select count(*) from hml_admin_sessions where token_hash='ci-session-hash' and revoked_at is null and expires_at > now();")
+          test "$active_session" = "1"
       - name: Economic core integration
         env:
           DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
@@ -105,12 +113,16 @@ jobs:
           test "$role_count" = "8"
 
           restored_rls_count=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
-            psql -U diretoria -d diretoria_restore -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens');")
-          test "$restored_rls_count" = "26"
+            psql -U diretoria -d diretoria_restore -Atc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity=true and c.relname in ('profiles','users','roles','permissions','events','user_roles','role_permissions','event_status_history','event_financial_configs','payments','payment_webhook_receipts','payment_events','credits','credit_movements','refunds','event_cost_items','event_revenue_commitments','quorum_snapshots','event_confirmation_checks','event_go_no_go_reviews','ledger_accounts','financial_transactions','financial_postings','audit_logs','hml_admin_allowlist','hml_bootstrap_tokens','hml_admin_sessions');")
+          test "$restored_rls_count" = "27"
 
           restored_allowlist=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
             psql -U diretoria -d diretoria_restore -Atc "select count(*) from hml_admin_allowlist where email_normalized='hml-ci@example.invalid' and enabled=true;")
           test "$restored_allowlist" = "1"
+
+          restored_session=$(docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
+            psql -U diretoria -d diretoria_restore -Atc "select count(*) from hml_admin_sessions where token_hash='ci-session-hash' and revoked_at is null;")
+          test "$restored_session" = "1"
 
           docker exec -e PGPASSWORD=ci_only_password "$POSTGRES_CONTAINER" \
             dropdb -U diretoria diretoria_restore
