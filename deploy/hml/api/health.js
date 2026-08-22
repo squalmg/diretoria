@@ -1,0 +1,1 @@
+export default function handler(req,res){res.status(200).json({status:'ok',service:'diretoria-hml',environment:'hml',version:'foundation-v0.1',production:false});}
