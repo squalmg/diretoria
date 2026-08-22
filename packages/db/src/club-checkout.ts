@@ -10,7 +10,7 @@ export interface ClubOffer {
   available: boolean;
   reason: string | null;
   event: { id: string; name: string; slug: string; status: string; currencyCode: string } | null;
-  financialConfig: { id: string; version: number; founderTicketGross: string } | null;
+  financialConfig: { id: string; version: number; founderTicketGross: string; feePassThrough: boolean } | null;
   checkoutProvider: 'unconfigured';
   paymentEnabled: false;
 }
@@ -62,7 +62,7 @@ export class PostgresClubCheckout {
     const normalized = assertNonEmpty(slug, 'EVENT_SLUG_REQUIRED');
     const result = await this.pool.query(
       `select e.id,e.name,e.slug,e.status,e.default_currency,
-              c.id financial_config_id,c.version,c.founder_ticket_gross
+              c.id financial_config_id,c.version,c.founder_ticket_gross,c.fee_pass_through
        from events e
        left join event_financial_configs c on c.event_id=e.id and c.effective_to is null
        where e.slug=$1
@@ -79,13 +79,18 @@ export class PostgresClubCheckout {
       available: true,
       reason: null,
       event,
-      financialConfig: { id: row.financial_config_id, version: Number(row.version), founderTicketGross: String(row.founder_ticket_gross) },
+      financialConfig: {
+        id: row.financial_config_id,
+        version: Number(row.version),
+        founderTicketGross: String(row.founder_ticket_gross),
+        feePassThrough: row.fee_pass_through === true,
+      },
       checkoutProvider: 'unconfigured',
       paymentEnabled: false,
     };
   }
 
-  async createIntent(input: CheckoutIntentInput): Promise<{ id: string; status: string; provider: string; amountGross: string; financialConfigId: string; replayed: boolean }> {
+  async createIntent(input: CheckoutIntentInput): Promise<{ id: string; status: string; provider: string; amountGross: string; baseAmount: string; processingFeeAmount: string; financialConfigId: string; replayed: boolean }> {
     const providerSubject = assertNonEmpty(input.providerSubject, 'PROVIDER_SUBJECT_REQUIRED');
     const eventId = assertNonEmpty(input.eventId, 'EVENT_ID_REQUIRED');
     const idempotencyKey = assertNonEmpty(input.idempotencyKey, 'IDEMPOTENCY_KEY_REQUIRED');
@@ -93,14 +98,23 @@ export class PostgresClubCheckout {
 
     return this.transaction(async (client) => {
       const existing = await client.query(
-        `select id,profile_id,event_id,financial_config_id,status,provider,amount_gross
+        `select id,profile_id,event_id,financial_config_id,status,provider,amount_gross,base_amount,processing_fee_amount
          from checkout_intents where idempotency_key=$1 for update`,
         [idempotencyKey],
       );
       if (existing.rows[0]) {
         const account = await client.query(`select profile_id from users where auth_provider='supabase' and provider_subject=$1 and status='active'`, [providerSubject]);
         if (!account.rows[0] || account.rows[0].profile_id !== existing.rows[0].profile_id || existing.rows[0].event_id !== eventId) throw new Error('CHECKOUT_IDEMPOTENCY_CONFLICT');
-        return { id: existing.rows[0].id, status: existing.rows[0].status, provider: existing.rows[0].provider, amountGross: String(existing.rows[0].amount_gross), financialConfigId: existing.rows[0].financial_config_id, replayed: true };
+        return {
+          id: existing.rows[0].id,
+          status: existing.rows[0].status,
+          provider: existing.rows[0].provider,
+          amountGross: String(existing.rows[0].amount_gross),
+          baseAmount: String(existing.rows[0].base_amount),
+          processingFeeAmount: String(existing.rows[0].processing_fee_amount),
+          financialConfigId: existing.rows[0].financial_config_id,
+          replayed: true,
+        };
       }
 
       const account = await client.query(
@@ -128,24 +142,44 @@ export class PostgresClubCheckout {
 
       const inserted = await client.query(
         `insert into checkout_intents(
-          profile_id,event_id,financial_config_id,purpose,provider,idempotency_key,amount_gross,currency_code,status,policy_version
-        ) values ($1,$2,$3,'club_credit','unconfigured',$4,$5,$6,'draft',$7)
-        returning id,status,provider,amount_gross,financial_config_id`,
+          profile_id,event_id,financial_config_id,purpose,provider,idempotency_key,
+          amount_gross,base_amount,processing_fee_amount,currency_code,status,policy_version
+        ) values ($1,$2,$3,'club_credit','unconfigured',$4,$5,$5,0,$6,'draft',$7)
+        returning id,status,provider,amount_gross,base_amount,processing_fee_amount,financial_config_id`,
         [account.rows[0].profile_id, eventId, row.financial_config_id, idempotencyKey, row.founder_ticket_gross, row.default_currency, input.policyVersion ?? null],
       );
       const intent = inserted.rows[0];
       await client.query(
         `insert into audit_logs(actor_user_id,actor_type,action,entity_type,entity_id,event_id,after_data,reason)
          values ($1,'user','checkout.intent_created','checkout_intent',$2,$3,$4::jsonb,'GATEWAY_NOT_CONFIGURED')`,
-        [account.rows[0].user_id, intent.id, eventId, JSON.stringify({ provider: 'unconfigured', status: 'draft', financialConfigId: intent.financial_config_id, amountGross: String(intent.amount_gross) })],
+        [account.rows[0].user_id, intent.id, eventId, JSON.stringify({
+          provider: 'unconfigured',
+          status: 'draft',
+          financialConfigId: intent.financial_config_id,
+          amountGross: String(intent.amount_gross),
+          baseAmount: String(intent.base_amount),
+          processingFeeAmount: String(intent.processing_fee_amount),
+        })],
       );
-      return { id: intent.id, status: intent.status, provider: intent.provider, amountGross: String(intent.amount_gross), financialConfigId: intent.financial_config_id, replayed: false };
+      return {
+        id: intent.id,
+        status: intent.status,
+        provider: intent.provider,
+        amountGross: String(intent.amount_gross),
+        baseAmount: String(intent.base_amount),
+        processingFeeAmount: String(intent.processing_fee_amount),
+        financialConfigId: intent.financial_config_id,
+        replayed: false,
+      };
     });
   }
 
   async getIntent(providerSubject: string, intentId: string) {
     const result = await this.pool.query(
-      `select ci.id,ci.event_id,ci.financial_config_id,ci.provider,ci.provider_session_id,ci.amount_gross,ci.currency_code,ci.status,ci.policy_version,ci.created_at,ci.expires_at
+      `select ci.id,ci.event_id,ci.financial_config_id,ci.provider,ci.provider_session_id,
+              ci.amount_gross,ci.base_amount,ci.processing_fee_amount,ci.payment_method,ci.installment_count,
+              ci.currency_code,ci.status,ci.policy_version,ci.fee_snapshot,ci.fee_source_hash,ci.fee_quoted_at,
+              ci.created_at,ci.expires_at
        from checkout_intents ci
        join users u on u.profile_id=ci.profile_id
        where u.auth_provider='supabase' and u.provider_subject=$1 and u.status='active' and ci.id=$2`,
