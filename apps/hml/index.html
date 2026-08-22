@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diretoria — Fundação</title>
+  <style>
+    :root { font-family: Inter, system-ui, sans-serif; background:#0d0d0f; color:#f6f6f6; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; }
+    main { width:min(880px, calc(100% - 40px)); }
+    .badge { display:inline-block; border:1px solid #3b3b42; border-radius:999px; padding:6px 10px; font-size:12px; }
+    h1 { font-size:clamp(36px,7vw,72px); margin:18px 0 8px; }
+    p { color:#bdbdc7; line-height:1.6; max-width:720px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:28px; }
+    .card { border:1px solid #2d2d33; border-radius:16px; padding:18px; background:#151519; }
+    .card strong { display:block; margin-bottom:6px; }
+    a { color:inherit; }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="badge">HML · FOUNDATION V0.1</span>
+    <h1>Diretoria</h1>
+    <p>Ambiente de homologação persistente. Esta tela ainda não representa o design final do painel. O objetivo desta entrega é validar domínio, integridade financeira, ambientes, auditoria e infraestrutura antes da camada visual definitiva.</p>
+    <div class="grid">
+      <div class="card"><strong>Regra</strong>Quórum é financeiro.</div>
+      <div class="card"><strong>Gate</strong>VIÁVEL não é CONFIRMADO.</div>
+      <div class="card"><strong>Risco</strong>Bar esperado não financia viabilidade.</div>
+      <div class="card"><strong>Próximo</strong>Núcleo econômico em HML.</div>
+    </div>
+    <p><a href="/api/health">Ver health endpoint</a></p>
+    <p>Desenvolvido por <a href="https://clanmarketing.com.br/">Clan Digital</a></p>
+  </main>
+</body>
+</html>
