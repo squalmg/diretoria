@@ -4,20 +4,21 @@ Este arquivo orienta agentes de IA e desenvolvedores automáticos que trabalhare
 
 ## Antes de qualquer alteração
 
-1. Leia `02-goal.md`.
-2. Leia o relatório mais recente em `relatorios/`.
-3. Consulte `06-backlog-v1.md` e identifique a story/feature correspondente.
-4. Consulte o documento de domínio relacionado.
-5. Não invente decisões listadas em `10-decisoes-abertas.md`.
+1. Leia `goal.md`.
+2. Leia o relatório mais recente em `relatorios/`, começando por `relatorios/STATUS-ATUAL.md`.
+3. Consulte `docs/06-backlog-v1.md` e identifique a story/feature correspondente.
+4. Consulte o documento de domínio relacionado em `docs/`.
+5. Não invente decisões listadas em `docs/10-decisoes-abertas.md`.
 
 ## Fonte de verdade
 
-- Regras de negócio: `02-goal.md` + `03-arquitetura-funcional.md`.
-- Integridade: `04-modelo-de-dados.md`.
-- Fluxos de interface: `05-ux-flow.md`.
-- Ordem de execução: `06-backlog-v1.md` e `09-roadmap-implementacao.md`.
-- Infraestrutura: `07-arquitetura-tecnica.md`.
-- Aceitação: `08-plano-hml-e-testes.md` e `11-matriz-rastreabilidade.md`.
+- Regras de negócio: `goal.md` + `docs/03-arquitetura-funcional.md`.
+- Visão completa: `docs/01-blueprint-mestre-diretoria.md`.
+- Integridade: `docs/04-modelo-de-dados.md`.
+- Fluxos de interface: `docs/05-ux-flow.md`.
+- Ordem de execução: `docs/06-backlog-v1.md` e `docs/09-roadmap-implementacao.md`.
+- Infraestrutura: `docs/07-arquitetura-tecnica.md`.
+- Aceitação: `docs/08-plano-hml-e-testes.md` e `docs/11-matriz-rastreabilidade.md`.
 
 ## Proibições
 
