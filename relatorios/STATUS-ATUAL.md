@@ -1,15 +1,17 @@
 # STATUS ATUAL — DIRETORIA
 
-**Data:** 21/08/2026  
+**Data:** 22/08/2026  
 **Fase:** Incremento 1 — Núcleo Econômico  
-**Estado:** **CORE TRANSACIONAL APROVADO; PRÓXIMO SLICE É API + ADMIN HML**
+**Estado:** **ADMIN HML ECONÔMICO IMPLEMENTADO E PUBLICADO**
 
 ## Repositório
 
 - GitHub: `squalmg/diretoria`;
 - branch principal: `main`;
 - HML-G0: **APROVADO**;
-- PR ativo do core: `#5 feat: implementar primeiro núcleo econômico transacional`.
+- core econômico transacional: **APROVADO**;
+- Admin HML read-only: **APROVADO e mergeado no PR #6**;
+- Admin HML com writes controlados: **implementado no PR #7, CI e deploy HML aprovados**.
 
 ## HML persistente
 
@@ -18,108 +20,111 @@
 - Vercel project: `diretoria-hml`;
 - project id: `prj_CSbGzOVsvIkkJLosiemlHmvcG7XV`;
 - URL: `https://diretoria-hml.vercel.app`;
+- deployment validado: `dpl_CkPLersGhaZar4hsMHrmGy22dxxJ`;
 - `/`: HTTP 200;
-- `/api/health`: HTTP 200.
+- `/writes.html`: HTTP 200;
+- `/writes.js`: HTTP 200;
+- `/api/edge-health`: HTTP 200;
+- build Vercel: **READY**, sem erro de build.
 
-### Banco
+### Banco / API
 
 - Supabase project: `diretoria-hml`;
 - project ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
-- estado observado: `ACTIVE_HEALTHY`;
-- migrations HML aplicadas: `0001` a `0008`.
+- estado: `ACTIVE_HEALTHY`;
+- migrations aplicadas: `0001` a `0014`;
+- Edge Function `diretoria-admin-api`: **ACTIVE**;
+- Edge Function `diretoria-admin-write-api`: **ACTIVE**;
+- operador sintético: `HML-OPERATOR`;
+- cliente sintético: `HML-CUSTOMER`;
+- nenhum dado pessoal real utilizado no slice.
 
-## Concluído no Incremento 1 — core transacional
+## O que está funcional
 
-- criação de edição;
-- configuração financeira versionada;
+### Leitura autenticada
+
+- sessão HML temporária;
+- bootstrap de uso único armazenado somente por hash;
+- lista de edições;
+- resumo da edição;
+- configuração financeira;
 - custos protegidos;
 - receitas garantidas;
-- pagamento mock/HML idempotente;
-- crédito válido;
-- recálculo e snapshots de quórum;
-- reembolso e queda do capital protegido;
-- checklist de confirmação;
-- GO/NO-GO;
-- confirmação server-side;
-- `refunds` persistido;
-- trigger PostgreSQL de máquina de estados;
-- RLS default-deny;
-- `search_path` fixo na função crítica.
+- snapshot/quórum;
+- checklist;
+- GO/NO-GO.
 
-## Evidência principal
+### Writes HML controlados
 
-GitHub Actions run final:
+A Edge Function de writes reutiliza o `PostgresEconomicCore` canônico. Não existe segunda implementação de quórum ou GO/NO-GO na camada HTTP.
 
-`32544462072`
+Operações expostas:
+
+1. criar edição;
+2. transição sequencial de fase;
+3. criar nova versão financeira;
+4. cadastrar custo protegido;
+5. cadastrar receita garantida;
+6. recalcular quórum;
+7. criar pagamento mock `pending`;
+8. confirmar pagamento mock;
+9. reembolsar pagamento;
+10. atualizar checklist;
+11. executar GO/NO-GO;
+12. confirmar edição pelo gate server-side.
+
+## Regras preservadas
+
+- pagamento `pending` não aumenta quórum;
+- promessa não reduz necessidade financeira;
+- bar não é receita elegível para tornar a edição viável;
+- `VIAVEL != CONFIRMADO`;
+- a UI não possui botão para forçar `VIAVEL`;
+- a UI não possui campo para editar capital protegido/quórum;
+- confirmação revalida snapshot atual + configuração + checklist + GO;
+- reembolso recalcula a proteção;
+- writes exigem sessão temporária HML válida;
+- valores financeiros entram na API como centavos inteiros;
+- segredos/connection strings não estão versionados.
+
+## Evidência automatizada mais recente
+
+GitHub Actions run:
+
+`32566538746`
 
 Resultado:
 
-- 10/10 testes de domínio: PASS;
-- migrations `0001–0008`: PASS;
-- schema/RLS/trigger: PASS;
+- testes de domínio: PASS;
+- secret scan: PASS;
+- validação de migrations: PASS;
+- validação de documentação: PASS;
+- validação JavaScript HML inline + externo: PASS;
+- migrations do zero: PASS;
+- hardening/RLS: PASS;
+- bootstrap/sessão: PASS;
 - cenário econômico integrado: PASS;
-- backup/restore após cenário: PASS.
+- backup/restore: PASS.
 
-Cenário integrado provado:
+## Ainda fora do escopo
 
-`640 → NAO_VIAVEL → 641 → VIAVEL → reembolso → 640 → novo pagamento → 641 → GO atual → CONFIRMADO`
-
-Também provado:
-
-- replay de webhook não duplica crédito;
-- promessa não reduz quórum;
-- bar não é receita garantida elegível;
-- GO antigo fica inválido depois de novo snapshot;
-- confirmação sem gate é bloqueada.
-
-Relatório:
-
-`relatorios/2026-08-21-INCREMENTO-1-NUCLEO-ECONOMICO.md`
-
-## Supabase Advisors
-
-Segurança:
-
-- sem ERROR de RLS desabilitado;
-- sem WARN de `function_search_path_mutable`;
-- INFO `rls_enabled_no_policy` permanece intencionalmente: default-deny até políticas explícitas serem necessárias.
-
-Performance:
-
-- apenas INFO de índices ainda sem uso, esperado em HML sem carga real.
-
-## Ainda não concluído no Incremento 1
-
-1. API HML expondo os casos de uso;
-2. autorização/RBAC server-side nos endpoints;
-3. painel administrativo conectado ao backend;
-4. autenticação HML para operadores;
-5. fluxos visuais ADM-03 a ADM-15 mínimos.
-
-Gateway de pagamento real, preço real e produção continuam fora deste slice e não devem ser inventados.
+- gateway de pagamento real;
+- preço/ticket comercial definitivo;
+- clientes reais;
+- produção;
+- ticketing/QR/portaria;
+- CRM público e aquisição;
+- políticas jurídicas definitivas.
 
 ## Próximo passo
 
-# Slice API + Admin HML
+# Smoke navegável + fechamento do Incremento 1
 
-Fluxo:
+Executar, somente com dados sintéticos, o fluxo navegável completo no HML:
 
-`Admin HML → API → PostgresEconomicCore → Supabase HML`
+`criar edição → fases → configuração → custos/receita → quórum → pagamento mock → crédito → reembolso → novo pagamento → VIAVEL → checklist → GO → CONFIRMADO`
 
-Prioridade:
-
-1. `/api/admin/events`;
-2. configuração financeira;
-3. custos;
-4. receitas garantidas;
-5. dashboard/quórum;
-6. pagamento mock controlado de HML;
-7. reembolso;
-8. checklist;
-9. GO/NO-GO;
-10. confirmar edição.
-
-Depois disso, validar o primeiro fluxo navegável de ponta a ponta no HML.
+Depois registrar evidência final do fluxo e iniciar o próximo incremento funcional conforme `docs/09-roadmap-implementacao.md`.
 
 **Desenvolvido por [Clan Digital](https://clanmarketing.com.br/)**
