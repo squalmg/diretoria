@@ -28,19 +28,39 @@ try {
   );
   const eventId = event.rows[0].id;
 
-  // Nova configuração: repasse é default e estimated_fee_per_member deve ser zerada pelo banco.
+  // Nova política Asaas: custo interno de processamento é zero porque a taxa
+  // calculada é adicionada ao valor que o pagador vê antes de confirmar.
   const config = await pool.query(
     `insert into event_financial_configs(
       event_id,version,founder_ticket_gross,estimated_fee_per_member,variable_cost_per_member,
       contingency_type,contingency_value,approved_exposure_limit,created_by
-    ) values ($1,1,150.00,9.99,5.00,'percentage',15.00,0,$2)
+    ) values ($1,1,150.00,0,5.00,'percentage',15.00,0,$2)
     returning id,fee_pass_through,estimated_fee_per_member`,
     [eventId, operatorId],
   );
-  assert(config.rows[0].fee_pass_through === true, 'new financial config must default to pass-through');
-  assert(String(config.rows[0].estimated_fee_per_member) === '0.00', 'pass-through must zero internal fee cost');
+  assert(config.rows[0].fee_pass_through === true, 'new Asaas config must default to pass-through');
+  assert(String(config.rows[0].estimated_fee_per_member) === '0.00', 'pass-through must have zero internal processing fee');
 
-  // Sem repasse explícito, o modelo histórico continua aceitando taxa absorvida.
+  // Compatibilidade: código/configuração que ainda informa taxa interna positiva
+  // declara, por definição, o modelo de taxa absorvida.
+  const legacyDefaultEvent = await pool.query(
+    `insert into events(event_code,name,slug,status,capacity,created_by)
+     values ($1,'Legacy Default Fee Model',$2,'PLANEJAMENTO',100,$3)
+     returning id`,
+    [`DIR-LEGACY-${suffix}`, `legacy-default-fee-${suffix}`, operatorId],
+  );
+  const legacyDefault = await pool.query(
+    `insert into event_financial_configs(
+      event_id,version,founder_ticket_gross,estimated_fee_per_member,variable_cost_per_member,
+      contingency_type,contingency_value,approved_exposure_limit,created_by
+    ) values ($1,1,150.00,4.50,5.00,'fixed',0,0,$2)
+    returning fee_pass_through,estimated_fee_per_member`,
+    [legacyDefaultEvent.rows[0].id, operatorId],
+  );
+  assert(legacyDefault.rows[0].fee_pass_through === false, 'positive internal fee must imply absorbed legacy model');
+  assert(String(legacyDefault.rows[0].estimated_fee_per_member) === '4.50', 'legacy internal fee must be preserved');
+
+  // Também continua possível declarar o legado explicitamente.
   const historicalEvent = await pool.query(
     `insert into events(event_code,name,slug,status,capacity,created_by)
      values ($1,'Historical Fee Model',$2,'PLANEJAMENTO',100,$3)
@@ -96,6 +116,18 @@ try {
   }
   assert(invalidCompositionBlocked, 'checkout total must equal base + passed fee');
 
+  // Inserção antiga sem base explícita é normalizada para base=total, taxa=0.
+  const legacyIntent = await pool.query(
+    `insert into checkout_intents(
+      profile_id,event_id,financial_config_id,purpose,provider,idempotency_key,
+      amount_gross,currency_code,status
+    ) values ($1,$2,$3,'club_credit','unconfigured',$4,150.00,'BRL','draft')
+    returning base_amount,processing_fee_amount`,
+    [profile.rows[0].id, eventId, config.rows[0].id, `asaas:${suffix}:legacy-intent`],
+  );
+  assert(String(legacyIntent.rows[0].base_amount) === '150.00', 'legacy checkout must normalize base amount');
+  assert(String(legacyIntent.rows[0].processing_fee_amount) === '0.00', 'legacy checkout must remain fee-free draft');
+
   const payment = await pool.query(
     `insert into payments(
       profile_id,event_id,purpose,gateway,idempotency_key,amount_gross,base_amount,
@@ -106,7 +138,17 @@ try {
   );
   assert(payment.rows[0]?.id, 'payment with separated base and fee must insert');
 
-  console.log('OK: Asaas fee pass-through is explicit, auditable and separated from protected event value.');
+  const legacyPayment = await pool.query(
+    `insert into payments(
+      profile_id,event_id,purpose,gateway,idempotency_key,amount_gross,currency_code,payment_method,status
+    ) values ($1,$2,'club_credit','mock',$3,150.00,'BRL','mock','pending')
+    returning base_amount,processing_fee_passed`,
+    [profile.rows[0].id, eventId, `legacy-payment:${suffix}`],
+  );
+  assert(String(legacyPayment.rows[0].base_amount) === '150.00', 'legacy payment must normalize base amount');
+  assert(String(legacyPayment.rows[0].processing_fee_passed) === '0.00', 'legacy payment must have no passed fee');
+
+  console.log('OK: Asaas fee pass-through is explicit, auditable and backward-compatible.');
 } finally {
   await pool.end();
 }
