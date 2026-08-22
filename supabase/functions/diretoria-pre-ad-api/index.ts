@@ -1,0 +1,33 @@
+import { createSupabaseContext } from 'npm:@supabase/server@^1';
+import { PostgresAssetCatalog } from 'https://raw.githubusercontent.com/squalmg/diretoria/2f341ab833d33f978d1fce78152ed49673fdf6a7/packages/db/src/asset-catalog.ts';
+import { PostgresAcquisitionInsights } from 'https://raw.githubusercontent.com/squalmg/diretoria/2f341ab833d33f978d1fce78152ed49673fdf6a7/packages/db/src/acquisition-insights.ts';
+
+const CANONICAL_ORIGIN='https://diretoria-hml.vercel.app';
+const LOCAL_ORIGINS=new Set(['http://localhost:3100','http://127.0.0.1:3100']);
+let catalogInstance:PostgresAssetCatalog|null=null;
+let insightInstance:PostgresAcquisitionInsights|null=null;
+function cors(req:Request):HeadersInit{const origin=req.headers.get('origin');return{'Access-Control-Allow-Origin':origin&&(origin===CANONICAL_ORIGIN||LOCAL_ORIGINS.has(origin))?origin:CANONICAL_ORIGIN,'Access-Control-Allow-Headers':'authorization,content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Max-Age':'86400','Vary':'Origin','Cache-Control':'no-store'};}
+function json(req:Request,body:unknown,status=200){return Response.json(body,{status,headers:cors(req)});}
+function originAllowed(origin:string|null){return !origin||origin===CANONICAL_ORIGIN||LOCAL_ORIGINS.has(origin);}
+function bearer(req:Request){const m=/^Bearer\s+(.+)$/i.exec(req.headers.get('authorization')??'');return m?.[1]?.trim()||null;}
+async function sha256(value:string){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('');}
+function pathOf(req:Request){const p=new URL(req.url).pathname,m='/diretoria-pre-ad-api',i=p.indexOf(m);return i<0?p:p.slice(i+m.length)||'/';}
+function connection(){const v=Deno.env.get('SUPABASE_DB_URL');if(!v)throw new Error('DATABASE_URL_REQUIRED');return v;}
+function catalog(){return catalogInstance??=new PostgresAssetCatalog(connection());}
+function insights(){return insightInstance??=new PostgresAcquisitionInsights(connection());}
+async function auth(req:Request){const token=bearer(req);if(!token?.startsWith('hml_'))return{response:json(req,{ok:false,code:'HML_SESSION_REQUIRED'},401)}as const;const{data:ctx,error}=await createSupabaseContext(req,{auth:'none'});if(error||!ctx)return{response:json(req,{ok:false,code:'SERVICE_UNAVAILABLE'},503)}as const;const h=await sha256(token),now=new Date().toISOString();const{data,error:q}=await ctx.supabaseAdmin.from('hml_admin_sessions').select('id,expires_at').eq('token_hash',h).is('revoked_at',null).gt('expires_at',now).maybeSingle();if(q)return{response:json(req,{ok:false,code:'HML_SESSION_QUERY_FAILED'},500)}as const;if(!data)return{response:json(req,{ok:false,code:'HML_SESSION_INVALID'},401)}as const;const{data:profile,error:pe}=await ctx.supabaseAdmin.from('profiles').select('id').eq('display_code','HML-OPERATOR').maybeSingle();if(pe||!profile)return{response:json(req,{ok:false,code:'HML_OPERATOR_NOT_READY'},503)}as const;const{data:user,error:ue}=await ctx.supabaseAdmin.from('users').select('id').eq('profile_id',profile.id).eq('status','active').maybeSingle();if(ue||!user)return{response:json(req,{ok:false,code:'HML_OPERATOR_NOT_READY'},503)}as const;return{actorUserId:user.id as string,expiresAt:data.expires_at as string}as const;}
+async function body(req:Request){try{const v=await req.json();if(!v||typeof v!=='object'||Array.isArray(v))throw new Error();return v as Record<string,unknown>;}catch{throw new Error('INVALID_JSON');}}
+function str(v:unknown,max=2000){if(v===undefined||v===null)return undefined;const t=String(v).trim();if(!t)return undefined;if(t.length>max)throw new Error('FIELD_TOO_LONG');return t;}
+function tags(v:unknown){if(v===undefined)return[];if(!Array.isArray(v))throw new Error('TAGS_INVALID');return v.map(x=>String(x));}
+function assetInput(v:Record<string,unknown>){return{eventId:str(v.eventId,36),historicalEventLabel:str(v.historicalEventLabel,180),assetType:String(v.assetType??''),storageKey:String(v.storageKey??''),title:str(v.title,240),description:str(v.description),format:str(v.format,80),quality:str(v.quality,80),usagePermission:String(v.usagePermission??'unknown')as any,rightsStatus:String(v.rightsStatus??'review_required')as any,rightsNotes:str(v.rightsNotes),sourceCredit:str(v.sourceCredit,240),externalSourceUrl:str(v.externalSourceUrl),capturedAt:str(v.capturedAt,64),tags:tags(v.tags)};}
+function safeError(req:Request,error:unknown){const raw=error instanceof Error?error.message:'UNKNOWN_ERROR';const code=raw.split(':')[0].replace(/[^A-Z0-9_]/gi,'_').toUpperCase();const status=code.includes('NOT_FOUND')?404:(code.includes('INVALID')||code.includes('REQUIRED')||code.includes('TOO_LONG')||code.includes('LIMIT'))?400:500;return json(req,{ok:false,code:status===500?'PRE_AD_OPERATION_FAILED':code},status);}
+
+Deno.serve(async(req:Request)=>{const origin=req.headers.get('origin');if(!originAllowed(origin))return json(req,{ok:false,code:'ORIGIN_NOT_ALLOWED'},403);if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});const session=await auth(req);if('response'in session)return session.response;const path=pathOf(req);try{
+  if(req.method==='GET'&&(path==='/'||path==='/health'))return json(req,{ok:true,service:'diretoria-pre-ad-api',environment:'hml',expiresAt:session.expiresAt,pixels:'disabled-unconfigured'});
+  if(req.method==='GET'&&path==='/insights'){const d=Number(new URL(req.url).searchParams.get('days')||30);return json(req,{ok:true,...await insights().dashboard(d)});}
+  if(req.method==='GET'&&path==='/asset-rights-summary')return json(req,{ok:true,items:await catalog().rightsSummary()});
+  if(req.method==='GET'&&path==='/assets'){const u=new URL(req.url);return json(req,{ok:true,items:await catalog().list({rightsStatus:str(u.searchParams.get('rightsStatus')??undefined,40)as any,usagePermission:str(u.searchParams.get('usagePermission')??undefined,40)as any,assetType:str(u.searchParams.get('assetType')??undefined,80),tag:str(u.searchParams.get('tag')??undefined,80),search:str(u.searchParams.get('search')??undefined,180),limit:Number(u.searchParams.get('limit')||100)})});}
+  if(req.method==='POST'&&path==='/assets'){const id=await catalog().create(assetInput(await body(req)),session.actorUserId);return json(req,{ok:true,assetId:id},201);}
+  const update=/^\/assets\/([0-9a-f-]{36})$/i.exec(path);if(req.method==='POST'&&update){await catalog().update(update[1],assetInput(await body(req)),session.actorUserId);return json(req,{ok:true,updated:true});}
+  return json(req,{ok:false,code:'NOT_FOUND'},404);
+}catch(error){return safeError(req,error);}});
