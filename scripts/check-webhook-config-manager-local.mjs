@@ -1,0 +1,18 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const edge=fs.readFileSync(new URL('../supabase/functions/diretoria-asaas-hml-lab/index.ts',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('../apps/hml/asaas-lab.js',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../apps/hml/asaas-lab.html',import.meta.url),'utf8');
+assert.match(edge,/api-sandbox\.asaas\.com/);
+assert.doesNotMatch(edge,/https:\/\/api\.asaas\.com/);
+assert.match(edge,/ASAAS_WEBHOOK_URL='https:\/\/heckakjcpwomoucobtau\.supabase\.co\/functions\/v1\/diretoria-asaas-webhook'/);
+assert.match(edge,/String\(row\?\.url\?\?''\)\.trim\(\)===ASAAS_WEBHOOK_URL/);
+assert.match(edge,/matches\.length!==1/);
+assert.match(edge,/\/v3\/webhooks\?offset=0&limit=100/);
+assert.match(edge,/method:'PUT'/);
+assert.match(edge,/authToken:webhookToken\(\)/);
+for(const event of ['CHECKOUT_CREATED','CHECKOUT_CANCELED','CHECKOUT_EXPIRED','CHECKOUT_PAID','PAYMENT_RECEIVED','PAYMENT_REFUNDED','PAYMENT_PARTIALLY_REFUNDED','PAYMENT_REFUND_IN_PROGRESS','PAYMENT_REFUND_DENIED','PAYMENT_CHARGEBACK_REQUESTED'])assert.ok(edge.includes(`'${event}'`),`missing ${event}`);
+assert.match(edge,/missingEvents/);assert.match(edge,/unexpectedEvents/);assert.match(edge,/compliant/);
+assert.doesNotMatch(edge,/return\{[^}]*authToken/);
+assert.match(ui,/webhook-audit/);assert.match(ui,/webhook-sync/);assert.match(ui,/CONFIGURAÇÃO CONFORME O HML V3/);
+assert.match(html,/Auditar webhook/);assert.match(html,/Sincronizar eventos Sandbox/);
+console.log('OK: gestor HML audita e sincroniza apenas o webhook Sandbox da URL canônica sem expor token');

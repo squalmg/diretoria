@@ -1,0 +1,30 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const edge=fs.readFileSync(new URL('../supabase/functions/diretoria-asaas-hml-lab/index.ts',import.meta.url),'utf8');
+const club=fs.readFileSync(new URL('../apps/public-hml/club.html',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('../apps/hml/asaas-lab.js',import.meta.url),'utf8');
+assert.match(edge,/REQUIRED_CHECKOUT_POLICIES=Object\.freeze\(\['club_terms','non_achievement_policy','privacy_policy'\]\)/);
+assert.match(edge,/reconciliation_status in\('pending','required'\)/);
+assert.match(edge,/Estornos pendentes/);
+assert.match(edge,/status in\('requested','approved','processing'\)/);
+assert.match(edge,/fee_pass_through===true/);
+assert.match(edge,/auditDiretoriaWebhook\(\)/);
+assert.match(edge,/publicBuildAudit\(\)/);
+assert.match(edge,/EDGE_BUILD='asaas-hml-v3-20260823'/);
+assert.match(edge,/edgeHealthAudit\(\)/);
+assert.match(edge,/Edge member V3 sem rotas legadas/);
+assert.match(edge,/legacyPaymentRoutes/);
+assert.match(edge,/Edge checkout V3/);
+assert.match(edge,/Edge webhook V3/);
+assert.match(edge,/refundLifecycleTracking/);
+assert.match(edge,/Edge policy V3/);
+assert.match(edge,/acceptanceAtomic/);
+assert.match(edge,/Edge policy admin V3/);
+assert.match(edge,/Edge status V3/);
+
+assert.match(edge,/PUBLIC_BUILD_MARKER='asaas-hml-v3-20260823'/);
+assert.match(club,/data-build="asaas-hml-v3-20260823"/);
+assert.match(ui,/GO — gates técnicos satisfeitos/);assert.match(ui,/NO-GO — ainda existem pendências/);
+assert.match(ui,/\/preflight\?slug=/);
+console.log('OK: preflight HML consolida secrets, edição, configuração, políticas, reconciliação, webhook e build público');
+
+assert.match(edge,/consents_active_policy_version_uq/);assert.match(edge,/migration 0025 ausente/);
