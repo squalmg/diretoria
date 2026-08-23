@@ -20,6 +20,7 @@ requireText(member, "path === '/checkout-policies/accept'", 'policy acceptance r
 requireText(member, "policyCore().accept", 'append-only policy acceptance');
 requireText(member, "POLICY_BUNDLE_STALE", 'stale policy bundle rejection');
 requireText(member, ".select('id,content')", 'active policy content retrieval');
+requireText(member, "database: 'connected'", 'health reports connected after successful probes');
 requireText(member, "checkoutProvider: configured ? 'asaas-sandbox' : 'asaas-sandbox-unconfigured'", 'dynamic Asaas offer state');
 requireText(member, "markCheckoutReconciliationRequired", 'reconciliation on uncertain create');
 requireText(member, "adapter.getAccountFees()", 'account fee quote');
@@ -39,9 +40,10 @@ requireText(webhook, "ASAAS_WEBHOOK_TOKEN_INVALID", 'invalid token rejection');
 requireText(webhook, "new Uint8Array(await req.arrayBuffer())", 'raw body verification');
 requireText(webhook, "PAYMENT_PROVIDER_UNCONFIGURED", 'webhook fail closed');
 
+forbid(member, ".database === 'connected'", 'database-name health false negative');
 forbid(member, 'accessToken:', 'literal access token in source');
 forbid(member, 'webhookAuthToken:', 'literal webhook token in source');
 forbid(webhook, "'asaas-access-token':", 'hardcoded webhook header value');
 forbid(webhook, 'service_role', 'service role secret');
 
-console.log('OK: Asaas HML edge is fail-closed, policy-gated, UI-wired and keeps secrets server-side.');
+console.log('OK: Asaas HML edge is fail-closed, policy-gated, health-correct, UI-wired and keeps secrets server-side.');
