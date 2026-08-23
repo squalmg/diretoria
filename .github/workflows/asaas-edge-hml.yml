@@ -4,7 +4,14 @@ on:
   pull_request:
     paths:
       - 'supabase/functions/diretoria-member-api/**'
+      - 'supabase/functions/diretoria-asaas-checkout-api/**'
+      - 'supabase/functions/diretoria-checkout-policy-api/**'
+      - 'supabase/functions/diretoria-checkout-status/**'
+      - 'supabase/functions/diretoria-policy-admin/**'
       - 'supabase/functions/diretoria-asaas-webhook/**'
+      - 'supabase/functions/diretoria-asaas-hml-lab/**'
+      - 'packages/payments/asaas-checkout-webhook.ts'
+      - 'apps/public-hml/club.*'
       - 'scripts/check-asaas-edge-hml.mjs'
       - '.github/workflows/asaas-edge-hml.yml'
   workflow_dispatch:
@@ -20,10 +27,15 @@ jobs:
           node-version: '24.19.0'
       - name: Syntax checks
         run: |
-          node --check supabase/functions/diretoria-member-api/index.ts
-          node --check supabase/functions/diretoria-asaas-webhook/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-member-api/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-asaas-checkout-api/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-checkout-policy-api/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-checkout-status/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-policy-admin/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-asaas-webhook/index.ts
+          node --experimental-strip-types --check supabase/functions/diretoria-asaas-hml-lab/index.ts
           node --check scripts/check-asaas-edge-hml.mjs
-      - name: Asaas edge safety contract
+      - name: Asaas edge V3 safety contract
         run: node scripts/check-asaas-edge-hml.mjs
       - name: Assert no secrets committed
         run: node scripts/check-secrets.mjs

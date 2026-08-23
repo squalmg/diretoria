@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=22.16.0" },
+  "engines": {
+    "node": ">=22.16.0"
+  },
   "scripts": {
     "test": "node scripts/run-tests.mjs",
-    "check": "npm run test && npm run secrets:check && npm run migrations:check && npm run docs:check && npm run hml:check",
+    "check": "npm run test && npm run secrets:check && npm run migrations:check && npm run docs:check && npm run hml:check && npm run asaas:hml-v3:check",
     "secrets:check": "node scripts/check-secrets.mjs",
     "migrations:check": "node scripts/check-migrations.mjs",
     "docs:check": "node scripts/check-docs.mjs",
@@ -21,7 +23,13 @@
     "admin": "node apps/admin/server.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:migrate:docker": "for f in packages/db/migrations/*.sql; do docker compose exec -T db psql -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f /migrations/$(basename $f) || exit 1; done"
+    "db:migrate:docker": "for f in packages/db/migrations/*.sql; do docker compose exec -T db psql -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f /migrations/$(basename $f) || exit 1; done",
+    "integration:checkout-start-guard": "node --experimental-strip-types scripts/integration-checkout-start-guard.ts",
+    "asaas:hml-v3:check": "node scripts/check-asaas-hml-v3.mjs",
+    "integration:asaas-hml-v3": "node --experimental-strip-types scripts/integration-asaas-hml-v3.ts",
+    "integration:checkout-policy-v3": "node --experimental-strip-types scripts/integration-checkout-policy-v3.ts"
   },
-  "dependencies": { "pg": "8.23.0" }
+  "dependencies": {
+    "pg": "8.23.0"
+  }
 }

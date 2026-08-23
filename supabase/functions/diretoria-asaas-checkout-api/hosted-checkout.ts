@@ -1,0 +1,27 @@
+import type { PaymentMethod, ProviderCheckoutResult } from 'https://raw.githubusercontent.com/squalmg/diretoria/c0fefccf0cf71b664ed6860b595dbe1bb037b827/packages/payments/provider-contract.ts';
+import type { AsaasAccountFeesResponse } from 'https://raw.githubusercontent.com/squalmg/diretoria/c0fefccf0cf71b664ed6860b595dbe1bb037b827/packages/payments/asaas-fees.ts';
+type FetchLike=(input:string|URL,init?:RequestInit)=>Promise<Response>;
+const DEFAULT_TIMEOUT_MS=8000; const DEFAULT_EXPIRE_MINUTES=60;
+function required(value:string,code:string){const text=String(value??'').trim();if(!text)throw new Error(code);return text;}
+function httpsUrl(value:string,code:string){const url=new URL(value);if(url.protocol!=='https:')throw new Error(code);return url.toString();}
+function toMajor(minor:bigint){if(minor<=0n||!Number.isSafeInteger(Number(minor)))throw new Error('ASAAS_AMOUNT_INVALID');return Number(minor)/100;}
+function billing(method:PaymentMethod){if(method==='pix')return'PIX';if(method==='card')return'CREDIT_CARD';throw new Error('ASAAS_PAYMENT_METHOD_UNSUPPORTED');}
+export class AsaasHostedCheckoutClient {
+  private readonly baseUrl:string; private readonly checkoutHost:string; private readonly accessToken:string; private readonly fetchImpl:FetchLike; private readonly timeoutMs:number;
+  constructor(input:{environment:'sandbox'|'production';accessToken:string;fetchImpl?:FetchLike;timeoutMs?:number}){if(input.environment!=='sandbox')throw new Error('ASAAS_HML_SANDBOX_ONLY');this.baseUrl='https://api-sandbox.asaas.com';this.checkoutHost='sandbox.asaas.com';this.accessToken=required(input.accessToken,'ASAAS_ACCESS_TOKEN_REQUIRED');this.fetchImpl=input.fetchImpl??fetch;this.timeoutMs=input.timeoutMs??DEFAULT_TIMEOUT_MS;}
+  private async request(path:string,init:RequestInit={}){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),this.timeoutMs);try{const response=await this.fetchImpl(`${this.baseUrl}${path}`,{...init,headers:{Accept:'application/json','User-Agent':'Diretoria/0.1',access_token:this.accessToken,...(init.body?{'Content-Type':'application/json'}:{}),...(init.headers??{})},signal:controller.signal});const text=await response.text();let body:any=null;if(text){try{body=JSON.parse(text);}catch{throw new Error('ASAAS_INVALID_JSON_RESPONSE');}}if(!response.ok)throw new Error(`ASAAS_HTTP_ERROR:${response.status}`);return body;}catch(error){if(error instanceof Error&&error.name==='AbortError')throw new Error('ASAAS_REQUEST_TIMEOUT');if(error instanceof Error&&error.message.startsWith('ASAAS_'))throw error;throw new Error('ASAAS_NETWORK_ERROR');}finally{clearTimeout(timer);}}
+  checkoutUrlForSession(id:string):string{const session=required(id,'ASAAS_CHECKOUT_ID_MISSING');return new URL(`/checkoutSession/show/${encodeURIComponent(session)}`,`https://${this.checkoutHost}`).toString();}
+  async getAccountFees():Promise<AsaasAccountFeesResponse>{const body=await this.request('/v3/myAccount/fees/',{method:'GET'});if(!body||typeof body!=='object')throw new Error('ASAAS_ACCOUNT_FEES_INVALID');return body as AsaasAccountFeesResponse;}
+  async createCheckout(input:{checkoutIntentId:string;amountMinor:bigint;currencyCode:string;eventReference:string;paymentMethod:PaymentMethod;returnUrl:string;cancelUrl:string;expiredUrl:string;minutesToExpire?:number}):Promise<ProviderCheckoutResult>{
+    if(input.currencyCode.toUpperCase()!=='BRL')throw new Error('ASAAS_CURRENCY_UNSUPPORTED');
+    const checkoutIntentId=required(input.checkoutIntentId,'ASAAS_CHECKOUT_INTENT_REQUIRED');if(checkoutIntentId.length>200)throw new Error('ASAAS_EXTERNAL_REFERENCE_TOO_LONG');
+    const minutes=input.minutesToExpire??DEFAULT_EXPIRE_MINUTES;if(!Number.isInteger(minutes)||minutes<10||minutes>1440)throw new Error('ASAAS_CHECKOUT_EXPIRATION_INVALID');
+    const payload={billingTypes:[billing(input.paymentMethod)],chargeTypes:['DETACHED'],minutesToExpire:minutes,externalReference:checkoutIntentId,callback:{successUrl:httpsUrl(input.returnUrl,'ASAAS_RETURN_URL_INVALID'),cancelUrl:httpsUrl(input.cancelUrl,'ASAAS_CANCEL_URL_INVALID'),expiredUrl:httpsUrl(input.expiredUrl,'ASAAS_EXPIRED_URL_INVALID')},items:[{externalReference:String(input.eventReference).slice(0,200),name:'Crédito Diretoria Club',description:`Participação na edição ${input.eventReference}`.slice(0,500),quantity:1,value:toMajor(input.amountMinor)}]};
+    const body=await this.request('/v3/checkouts',{method:'POST',body:JSON.stringify(payload)});const id=required(String(body?.id??''),'ASAAS_CHECKOUT_ID_MISSING');
+    let target:URL;const link=String(body?.link??'').trim();if(link){target=new URL(link);}else{target=new URL(this.checkoutUrlForSession(id));}
+    if(target.protocol!=='https:'||target.hostname.toLowerCase()!==this.checkoutHost||target.port||target.username||target.password||!(target.pathname==='/checkoutSession/show'||target.pathname.startsWith('/checkoutSession/show/')))throw new Error('ASAAS_CHECKOUT_LINK_HOST_INVALID');
+    if(body?.externalReference!=null&&String(body.externalReference)!==checkoutIntentId)throw new Error('ASAAS_CHECKOUT_EXTERNAL_REFERENCE_MISMATCH');
+    if(body?.status!=null&&!['ACTIVE','PENDING'].includes(String(body.status).toUpperCase()))throw new Error('ASAAS_CHECKOUT_NOT_ACTIVE');
+    return{provider:'asaas',providerSessionId:id,providerPaymentId:null,status:'pending',paymentMethod:input.paymentMethod,expiresAt:new Date(Date.now()+minutes*60000).toISOString(),redirectUrl:target.toString(),pixCopyPaste:null,pixQrPayload:null,clientToken:null};
+  }
+}
