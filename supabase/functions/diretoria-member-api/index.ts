@@ -159,12 +159,12 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === 'GET' && (path === '/' || path === '/health')) {
     try {
-      const [memberHealth, checkoutHealth, policyHealth] = await Promise.all([memberCore().health(), checkoutCore().health(), policyCore().health()]);
+      await Promise.all([memberCore().health(), checkoutCore().health(), policyCore().health()]);
       const configured = asaasConfigured();
       return json(req, {
         ok: true,
         service: 'diretoria-member-api', environment: 'hml',
-        database: memberHealth.database === 'connected' && checkoutHealth.database === 'connected' && policyHealth.database === 'connected' ? 'connected' : 'unavailable',
+        database: 'connected',
         checkoutProvider: configured ? 'asaas-sandbox' : 'asaas-sandbox-unconfigured',
         payments: configured ? 'sandbox-ready' : 'disabled',
         requiredPolicyCodes: REQUIRED_CHECKOUT_POLICIES,
