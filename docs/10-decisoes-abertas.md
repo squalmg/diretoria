@@ -11,7 +11,7 @@ Não inventar decisões pendentes durante implementação. Quando uma decisão f
 | DEC-003 | Tamanho da primeira festa | ABERTA | Não definido |
 | DEC-004 | Cidade/região inicial | ABERTA | Não definido no documento canônico |
 | DEC-005 | Local(is) da primeira edição | ABERTA | Não definido |
-| DEC-006 | Gateway de pagamento | ABERTA | Implementar por adapter; fornecedor não definido |
+| DEC-006 | Gateway de pagamento | DECIDIDA | Asaas como gateway V1; Sandbox primeiro; hosted checkout; produção com credenciais separadas |
 | DEC-007 | Preço público | ABERTA | Não definido |
 | DEC-008 | Benefícios do membro | ABERTA | Estrutura prevista; lista final não definida |
 | DEC-009 | Política definitiva de reembolso | ABERTA | Modelo reembolso ou rollover; jurídico/contábil pendente |
@@ -32,6 +32,15 @@ Não inventar decisões pendentes durante implementação. Quando uma decisão f
 | DEC-024 | Peso de patrocínio contratado não pago | ABERTA | Pode ser configurável; política final pendente |
 | DEC-025 | Tolerância de conciliação | ABERTA | Divergências sempre registradas; tolerância ainda não definida |
 | DEC-026 | Provedores do HML | DECIDIDA | Banco: Supabase `diretoria-hml` em `sa-east-1`; aplicação: Vercel `diretoria-hml` |
+
+# DEC-006 — Gateway de pagamento
+
+**Status:** DECIDIDA  
+**Data:** 22/08/2026  
+**Decisão:** usar **Asaas** como gateway de pagamento V1 da Diretoria. A homologação começa exclusivamente no **Asaas Sandbox**, com Pix e cartão 1x, usando hosted checkout. Credenciais de produção serão separadas e só serão configuradas após o ciclo completo de homologação e revisão.  
+**Regra econômica associada:** o preço-base da Diretoria é preservado; a taxa do Asaas pode ser repassada adicionalmente ao cliente, mas não compõe crédito nem capital protegido/quórum.  
+**Motivo:** o adapter, o lifecycle transacional, a cotação de taxas da conta, o gross-up, a reconciliação, o webhook autenticado e os reversals já foram implementados e testados em HML. Hosted checkout evita que a Diretoria manipule número de cartão ou CVV.  
+**Impacto:** `payments.provider = asaas` na V1; Sandbox obrigatório antes de produção; `ASAAS_ACCESS_TOKEN` e `ASAAS_WEBHOOK_AUTH_TOKEN` permanecem somente em secrets do ambiente; nenhuma credencial HML é promovida automaticamente para produção; política jurídica continua sendo gate independente.
 
 # DEC-026 — Provedores do HML
 
