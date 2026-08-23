@@ -1,0 +1,51 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const root=new URL('../supabase/functions/diretoria-asaas-webhook/',import.meta.url);
+const edge=fs.readFileSync(new URL('index.ts',root),'utf8');
+const support=fs.readFileSync(new URL('checkout-support.ts',root),'utf8');
+const recon=fs.readFileSync(new URL('checkout-reconciliation.ts',root),'utf8');
+assert.match(edge,/CHECKOUT_/);
+assert.match(edge,/fetchPaymentForCheckout/);
+assert.match(edge,/checkoutEvent\.externalReference.*intent\.id/);
+assert.match(edge,/verifyAsaasPaymentWebhookEnvelope/);
+assert.match(edge,/fetchAsaasPaymentById/);
+assert.match(edge,/findIntentByProviderPaymentId/);
+assert.match(edge,/findUnboundCandidates/);
+assert.match(edge,/checkoutSessionContainsPayment/);
+assert.match(edge,/pixConfirmedPolicy:'wait_for_received'/);
+assert.match(support,/checkoutSession/);
+assert.match(support,/status === 'RECEIVED'/);
+assert.match(support,/method === 'pix'/);
+assert.match(support,/method === 'card'/);
+assert.match(support,/NET_VALUE_REQUIRED/);
+assert.match(support,/verifyAsaasPaymentWebhookEnvelope/);
+assert.match(support,/paymentEnvelopeToVerifiedWebhook/);
+assert.match(support,/checkoutSessionContainsPayment/);
+assert.match(recon,/provider_session_id=\$1/);
+assert.match(recon,/gateway_payment_id=\$1/);
+assert.match(recon,/findUnboundCandidates/);
+assert.match(recon,/status=\$2/);
+assert.match(recon,/checkout\.\$\{webhook\.eventType\}/);
+assert.match(recon,/webhook\.eventType === 'created'/);
+assert.match(edge,/processLifecycle\(checkoutEvent\)/);
+assert.match(edge,/resourceExternalReference/);
+assert.match(edge,/processVerifiedWithBindingRecovery/);
+assert.match(recon,/ensurePendingPayment/);
+assert.match(recon,/checkout\.binding_recovered_from_webhook/);
+assert.match(edge,/refundLifecycleTracking:true/);
+assert.match(edge,/PAYMENT_REFUND_IN_PROGRESS/);
+assert.match(edge,/PAYMENT_REFUND_DENIED/);
+assert.match(recon,/recordRefundProgress/);
+assert.match(recon,/recordRefundDenied/);
+
+for(const source of [edge,support,recon]){
+  assert.doesNotMatch(source,/whsec_[A-Za-z0-9_-]{10,}/);
+  assert.doesNotMatch(source,/\$aact_[A-Za-z0-9_-]{10,}/);
+}
+console.log('OK: webhook Asaas local cobre Checkout + Payment com fail-closed');
+
+assert.match(edge,/PERMANENT_FINANCIAL_RECONCILIATION/);
+assert.match(edge,/reconciliationRequired:true/);
+assert.match(recon,/recordVerifiedPaymentReconciliation/);
+assert.match(recon,/payment\.reconciliation_required/);
+assert.match(recon,/processing_status,error_message/);
