@@ -123,6 +123,7 @@ async function authenticated(req: Request) {
   if (userResult.error || !authUser) return { response: json(req, { ok: false, code: 'AUTH_USER_NOT_FOUND' }, 401) } as const;
   const metadata = (authUser.user_metadata ?? {}) as Record<string, unknown>;
   return {
+    ctx,
     subject,
     email: authUser.email ?? null,
     phone: authUser.phone ?? null,
@@ -141,7 +142,7 @@ function safeError(req: Request, error: unknown): Response {
     code.includes('VERIFICATION_REQUIRED') || code.includes('IDENTITY_CONFLICT') || code.includes('ALREADY_HAS_ACCOUNT') ||
     code.includes('NOT_ACTIVE') || code.includes('PHASE_BLOCKED') || code.includes('IDEMPOTENCY_CONFLICT') ||
     code.includes('ACCEPTANCE_REQUIRED') || code.includes('ACTIVE_DOCUMENT_REQUIRED') || code.includes('ALREADY_FROZEN') ||
-    code.includes('SESSION_CONFLICT') || code.includes('RECONCILIATION')
+    code.includes('SESSION_CONFLICT') || code.includes('RECONCILIATION') || code.includes('STALE')
   ) return json(req, { ok: false, code }, 409);
   if (code.includes('UNCONFIGURED')) return json(req, { ok: false, code }, 503);
   if (code.includes('INVALID') || code.includes('REQUIRED') || code.includes('TOO_LONG') || code.includes('UNSUPPORTED')) return json(req, { ok: false, code }, 400);
@@ -175,8 +176,18 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method === 'GET' && path === '/offer') {
-    try { return json(req, { ok: true, offer: await checkoutCore().offerBySlug(url.searchParams.get('slug') ?? '') }); }
-    catch (error) { return safeError(req, error); }
+    try {
+      const configured = asaasConfigured();
+      const offer = await checkoutCore().offerBySlug(url.searchParams.get('slug') ?? '');
+      return json(req, {
+        ok: true,
+        offer: {
+          ...offer,
+          checkoutProvider: configured ? 'asaas-sandbox' : 'asaas-sandbox-unconfigured',
+          paymentEnabled: configured,
+        },
+      });
+    } catch (error) { return safeError(req, error); }
   }
 
   const auth = await authenticated(req);
@@ -192,6 +203,59 @@ Deno.serve(async (req: Request) => {
     }
     if (req.method === 'GET' && path === '/me') return json(req, { ok: true, account: await memberCore().getAccount(auth.subject) });
     if (req.method === 'GET' && path === '/wallet') return json(req, { ok: true, wallet: await memberCore().wallet(auth.subject) });
+
+    if (req.method === 'GET' && path === '/checkout-policies') {
+      const bundle = await policyCore().activeBundle(REQUIRED_CHECKOUT_POLICIES);
+      const ids = bundle.documents.map((document) => document.id);
+      const { data: rows, error } = await auth.ctx.supabaseAdmin
+        .from('policy_documents')
+        .select('id,content')
+        .in('id', ids);
+      if (error) throw new Error('POLICY_CONTENT_QUERY_FAILED');
+      const contentById = new Map((rows ?? []).map((row: { id: string; content: string }) => [row.id, row.content]));
+      if (ids.some((id) => !contentById.has(id))) throw new Error('POLICY_CONTENT_NOT_FOUND');
+      return json(req, {
+        ok: true,
+        context: POLICY_CONTEXT,
+        bundle: {
+          fingerprint: bundle.fingerprint,
+          documents: bundle.documents.map((document) => ({ ...document, content: contentById.get(document.id) })),
+        },
+      });
+    }
+
+    if (req.method === 'POST' && path === '/checkout-policies/accept') {
+      const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+      const fingerprint = String(body.fingerprint ?? '').trim().toLowerCase();
+      if (!/^[0-9a-f]{64}$/.test(fingerprint)) throw new Error('POLICY_FINGERPRINT_INVALID');
+      const bundle = await policyCore().activeBundle(REQUIRED_CHECKOUT_POLICIES);
+      if (bundle.fingerprint !== fingerprint) throw new Error('POLICY_BUNDLE_STALE');
+      const account = await memberCore().getAccount(auth.subject);
+      const accepted = await policyCore().accept({
+        profileId: account.profile_id,
+        policyDocumentIds: bundle.documents.map((document) => document.id),
+        context: POLICY_CONTEXT,
+        source: 'public_hml',
+        evidence: {
+          bundleFingerprint: bundle.fingerprint,
+          userAgent: String(req.headers.get('user-agent') ?? '').slice(0, 300),
+        },
+      });
+      const verified = await policyCore().assertAccepted({
+        profileId: account.profile_id,
+        context: POLICY_CONTEXT,
+        requiredCodes: REQUIRED_CHECKOUT_POLICIES,
+      });
+      return json(req, {
+        ok: true,
+        acceptance: {
+          fingerprint: verified.fingerprint,
+          documentIds: verified.documentIds,
+          acceptedIds: accepted.acceptedIds,
+          replayedIds: accepted.replayedIds,
+        },
+      });
+    }
 
     if (req.method === 'POST' && path === '/checkout-intents') {
       const body = await req.json().catch(() => ({})) as Record<string, unknown>;
