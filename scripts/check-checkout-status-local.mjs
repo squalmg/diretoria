@@ -1,0 +1,10 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const source=fs.readFileSync(new URL('../supabase/functions/diretoria-checkout-status/index.ts',import.meta.url),'utf8');
+assert.match(source,/createSupabaseContext\(req,\{auth:'user'\}\)/);
+assert.match(source,/u\.provider_subject=\$1/);
+assert.match(source,/ci\.id=\$2/);
+assert.match(source,/left join payments pay on pay\.checkout_intent_id=ci\.id/);
+assert.match(source,/left join credits cr on cr\.payment_id=pay\.id/);
+assert.match(source,/authority:'backend_only'/);
+assert.doesNotMatch(source,/ASAAS_ACCESS_TOKEN|ASAAS_WEBHOOK_AUTH_TOKEN/);
+console.log('OK: checkout status é read-only, autenticado e backend-authoritative');

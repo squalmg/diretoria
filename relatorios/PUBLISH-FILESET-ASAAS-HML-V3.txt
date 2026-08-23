@@ -1,0 +1,79 @@
+# DIRETORIA — PUBLISH FILESET ASAAS HML V3
+# Estratégia: 1 tree + 1 commit técnico + 1 PR.
+
+[PATCH_REMOTE]
+.github/workflows/ci.yml
+
+[UPSERT_FROM_LOCAL]
+package.json
+apps/hml/index.html
+apps/hml/policies.html
+apps/hml/policies.js
+apps/hml/asaas-lab.html
+apps/hml/asaas-lab.js
+apps/public-hml/club.html
+apps/public-hml/club.js
+apps/public-hml/club-flow.js
+packages/db/migrations/0025_checkout_consent_idempotency.sql
+packages/payments/asaas-checkout-webhook.ts
+scripts/check-hml-html.mjs
+scripts/check-asaas-hml-v3.mjs
+scripts/check-member-api-v3-local.mjs
+scripts/test-club-flow.mjs
+scripts/check-club-local.mjs
+scripts/test-hosted-checkout-client.mjs
+scripts/check-checkout-api-local.mjs
+scripts/check-checkout-start-guard-local.mjs
+scripts/check-checkout-status-local.mjs
+scripts/test-asaas-checkout-webhook.mjs
+scripts/check-asaas-webhook-local.mjs
+scripts/check-webhook-support-parity-local.mjs
+scripts/check-policy-admin-local.mjs
+scripts/check-checkout-policy-api-local.mjs
+scripts/check-consent-idempotency-local.mjs
+scripts/check-asaas-hml-lab-local.mjs
+scripts/check-refund-tracking-local.mjs
+scripts/check-webhook-config-manager-local.mjs
+scripts/check-preflight-local.mjs
+scripts/check-local-security.mjs
+scripts/check-release-v3-local.mjs
+scripts/integration-asaas-hml-v3.ts
+scripts/integration-checkout-policy-v3.ts
+scripts/integration-checkout-start-guard.ts
+supabase/functions/diretoria-member-api/index.ts
+supabase/functions/diretoria-member-api/deno.json
+supabase/functions/diretoria-asaas-checkout-api/index.ts
+supabase/functions/diretoria-asaas-checkout-api/hosted-checkout.ts
+supabase/functions/diretoria-asaas-checkout-api/start-guard.ts
+supabase/functions/diretoria-asaas-checkout-api/deno.json
+supabase/functions/diretoria-checkout-status/index.ts
+supabase/functions/diretoria-checkout-status/deno.json
+supabase/functions/diretoria-checkout-policy-api/index.ts
+supabase/functions/diretoria-checkout-policy-api/accept-guard.ts
+supabase/functions/diretoria-checkout-policy-api/deno.json
+supabase/functions/diretoria-policy-admin/index.ts
+supabase/functions/diretoria-policy-admin/deno.json
+supabase/functions/diretoria-asaas-webhook/index.ts
+supabase/functions/diretoria-asaas-webhook/checkout-support.ts
+supabase/functions/diretoria-asaas-webhook/checkout-reconciliation.ts
+supabase/functions/diretoria-asaas-webhook/deno.json
+supabase/functions/diretoria-asaas-hml-lab/index.ts
+supabase/functions/diretoria-asaas-hml-lab/deno.json
+relatorios/2026-08-23-ASAAS-HML-V3-LOCAL.md
+relatorios/DEPLOY-MANIFEST-ASAAS-HML-V3.md
+relatorios/CI-PATCH-ASAAS-HML-V3.yml
+relatorios/POLITICAS-HML-CHECKLIST.md
+relatorios/PUBLISH-FILESET-ASAAS-HML-V3.txt
+
+[LOCAL_ONLY_DO_NOT_COMMIT]
+relatorios/LOCAL-PACKAGE-SHA256.txt
+/mnt/data/DIRETORIA-ASAAS-HML-V3-LOCAL-2026-08-23.tar.gz
+/mnt/data/DIRETORIA-ASAAS-HML-V3-LOCAL-2026-08-23.tar.gz.sha256
+
+[FINAL_REMOTE_VALIDATIONS]
+- reread main SHA/tree
+- no secret material in diff
+- CI static suite green
+- migrations from zero green
+- 3 PostgreSQL integrations green
+- merge only after all checks green
