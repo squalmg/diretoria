@@ -7,6 +7,9 @@ on:
       - 'packages/db/src/club-checkout.ts'
       - 'scripts/integration-club-checkout.ts'
       - 'supabase/functions/diretoria-member-api/**'
+      - 'supabase/functions/diretoria-asaas-checkout-api/**'
+      - 'supabase/functions/diretoria-checkout-policy-api/**'
+      - 'supabase/functions/diretoria-checkout-status/**'
       - 'apps/public-hml/club.*'
       - '.github/workflows/club-checkout.yml'
   workflow_dispatch:
@@ -40,15 +43,24 @@ jobs:
         run: |
           node --check packages/db/src/club-checkout.ts
           node --check apps/public-hml/club.js
+          node --check supabase/functions/diretoria-member-api/index.ts
+          node --check supabase/functions/diretoria-asaas-checkout-api/index.ts
+          node --check supabase/functions/diretoria-asaas-checkout-api/hosted-checkout.ts
+          node --check supabase/functions/diretoria-asaas-checkout-api/start-guard.ts
           grep -q "provider: 'unconfigured'" packages/db/src/club-checkout.ts
-          grep -q "checkoutProvider: configured ? 'asaas-sandbox' : 'asaas-sandbox-unconfigured'" supabase/functions/diretoria-member-api/index.ts
-          grep -q "PAYMENT_PROVIDER_UNCONFIGURED" supabase/functions/diretoria-member-api/index.ts
-          grep -q "quoteAsaasPassThrough" supabase/functions/diretoria-member-api/index.ts
-          if grep -Eqi "stripe|mercadopago|pagarme|paymentintent|client_secret|card.?number|security.?code|cvv" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
+          grep -q "asaas-sandbox-unconfigured" supabase/functions/diretoria-member-api/index.ts
+          grep -q "legacyPaymentRoutes:'disabled'" supabase/functions/diretoria-member-api/index.ts
+          grep -q "CHECKOUT_ORCHESTRATION_MOVED_TO_V3" supabase/functions/diretoria-member-api/index.ts
+          grep -q "quoteAsaasPassThrough" supabase/functions/diretoria-asaas-checkout-api/index.ts
+          grep -q "ASAAS_HML_CARD_ONLY_ONE_INSTALLMENT" supabase/functions/diretoria-asaas-checkout-api/index.ts
+          grep -q "PAYMENT_PROVIDER_UNCONFIGURED" supabase/functions/diretoria-asaas-checkout-api/index.ts
+          grep -q "PostgresCheckoutStartGuard" supabase/functions/diretoria-asaas-checkout-api/index.ts
+          grep -q "privacy_policy" supabase/functions/diretoria-asaas-checkout-api/index.ts
+          if grep -Eqi "stripe|mercadopago|pagarme|paymentintent|client_secret|card.?number|security.?code|cvv" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts supabase/functions/diretoria-asaas-checkout-api/index.ts supabase/functions/diretoria-asaas-checkout-api/hosted-checkout.ts; then
             echo "Forbidden payment capability or card-data handling found in Club flow."
             exit 1
           fi
-          if grep -Eq "ASAAS_ACCESS_TOKEN=['\"]|ASAAS_WEBHOOK_AUTH_TOKEN=['\"]" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts; then
+          if grep -Eq "ASAAS_ACCESS_TOKEN=['\"]|ASAAS_WEBHOOK_AUTH_TOKEN=['\"]" apps/public-hml/club.js supabase/functions/diretoria-member-api/index.ts supabase/functions/diretoria-asaas-checkout-api/index.ts supabase/functions/diretoria-asaas-checkout-api/hosted-checkout.ts; then
             echo "Asaas secret literal found in source."
             exit 1
           fi

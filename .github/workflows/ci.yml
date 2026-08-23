@@ -39,6 +39,13 @@ jobs:
             echo "Applying ${migration}"
             psql -h localhost -U diretoria -d diretoria -v ON_ERROR_STOP=1 -f "${migration}"
           done
+      - name: Asaas HML V3 database integration
+        env:
+          DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
+        run: |
+          npm run integration:asaas-hml-v3
+          npm run integration:checkout-policy-v3
+          npm run integration:checkout-start-guard
       - name: Assert foundation schema and hardening
         env:
           PGPASSWORD: ci_only_password

@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const htmlFiles=['apps/hml/index.html','apps/hml/writes.html','apps/hml/crm.html','apps/public-hml/index.html'];
+const htmlFiles=[
+  'apps/hml/index.html','apps/hml/writes.html','apps/hml/crm.html',
+  'apps/hml/policies.html','apps/hml/asaas-lab.html',
+  'apps/public-hml/index.html','apps/public-hml/club.html'
+];
 const temp=mkdtempSync(join(tmpdir(),'diretoria-hml-check-'));
 const targets=new Set();
 let checked=0;
@@ -18,6 +22,7 @@ function checkJs(source,label){
 
 try{
   for(const file of htmlFiles){
+    if(!existsSync(file))throw new Error(`HML_HTML_NOT_FOUND:${file}`);
     const html=readFileSync(file,'utf8');
     for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)){
       const tag=match[0];

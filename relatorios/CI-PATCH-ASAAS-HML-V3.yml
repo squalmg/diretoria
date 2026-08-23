@@ -1,0 +1,9 @@
+# Inserir em `.github/workflows/ci.yml` depois de `Apply migrations from zero`.
+# O serviço PostgreSQL 18.6 e DATABASE_URL já existem no workflow principal.
+- name: Asaas HML V3 database integration
+  env:
+    DATABASE_URL: postgresql://diretoria:ci_only_password@localhost:5432/diretoria
+  run: |
+    npm run integration:asaas-hml-v3
+    npm run integration:checkout-policy-v3
+    npm run integration:checkout-start-guard
