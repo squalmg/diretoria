@@ -2,7 +2,7 @@
 
 **Data:** 22/08/2026  
 **Fase:** Incremento 3 — Club e pagamento Asaas  
-**Estado:** **ASAAS DEFINIDO PARA V1; FLUXO HML PUBLICADO EM FAIL-CLOSED; PAGAMENTO SANDBOX AINDA BLOQUEADO POR SECRETS E POLÍTICAS**
+**Estado:** **BACKEND ASAAS HML PRONTO E FAIL-CLOSED; BANCO CONECTADO; PRIMEIRO PAGAMENTO BLOQUEADO POR SECRETS, POLÍTICAS E DEPLOY DA UI PÚBLICA**
 
 ## Repositório
 
@@ -23,12 +23,15 @@ Merges relevantes:
 - PR #19 — repasse integral das taxas Asaas;
 - PR #20 — adapter Asaas fail-closed;
 - PR #21 — lifecycle transacional Asaas `checkout → payment → credit → quorum → reversal`;
-- PR #22 — Edge API HML + webhook Asaas.
+- PR #22 — Edge API HML + webhook Asaas;
+- PR #23 — checkpoint documental;
+- PR #24 — UX/API completa de checkout Sandbox `intent → quote → policies → accept → start`;
+- PR #25 — correção do health do member API.
 
-Últimos merges:
+Últimos merges técnicos:
 
-- PR #21: `c0fefccf0cf71b664ed6860b595dbe1bb037b827`;
-- PR #22: `e618b7e6b3d48d92a7d60f3882b4050054b0de44`.
+- PR #24: `683df475124d8cd47c6b262f37de7e659c84a0dc`;
+- PR #25: `7a17ae7566540cdc3a2ed5ec60842c534be5c4cd`.
 
 # Decisão canônica de pagamento
 
@@ -36,39 +39,32 @@ Merges relevantes:
 
 **Asaas.**
 
-A decisão do projeto é:
+DEC-006 está decidida: Sandbox primeiro, hosted checkout, Pix + cartão 1x na fase inicial e credenciais de produção separadas.
 
-> O preço-base da Diretoria deve ser preservado. Taxas do meio de pagamento são cobradas adicionalmente do cliente e não compõem receita protegida/quórum.
+Regra econômica:
 
-Consequências implementadas:
+> O preço-base da Diretoria deve ser preservado. Taxas do meio de pagamento são cobradas adicionalmente do cliente e não compõem crédito nem capital protegido/quórum.
+
+Campos implementados:
 
 - `base_amount`: preço da Diretoria;
 - `processing_fee_amount`: taxa repassada ao cliente;
 - `amount_gross`: total cobrado;
-- `provider_fee_actual`: taxa efetivamente cobrada pelo Asaas;
-- crédito nasce pelo preço-base, nunca pelo total cobrado;
-- capital protegido ignora taxa repassada;
-- se a taxa real for maior que a taxa repassada, o fluxo falha fechado para reconciliação em vez de corroer silenciosamente a base econômica.
+- `provider_fee_actual`: taxa efetivamente cobrada pelo Asaas.
+
+O crédito nasce pelo preço-base. A taxa repassada não entra no quórum.
 
 ## Cotação
 
-O sistema não fixa taxas públicas como verdade permanente.
+O sistema não fixa taxa pública como verdade permanente.
 
-Em HML, quando o Sandbox estiver configurado:
+Quando as credenciais Sandbox estiverem disponíveis para a Edge:
 
-1. consulta `GET /v3/myAccount/fees/`;
-2. calcula gross-up da taxa da conta;
+1. consulta as taxas efetivas da conta Asaas;
+2. calcula gross-up;
 3. congela base/taxa/total no checkout intent;
-4. grava snapshot + hash da fonte da cotação.
-
-Primeiro escopo Sandbox:
-
-- Pix;
-- cartão **1x**;
-- hosted checkout Asaas;
-- nenhum dado de cartão passa pela Diretoria.
-
-Parcelamento maior só deve ser liberado após validar o comportamento real de cobrança/tarifa no Sandbox.
+4. grava snapshot + hash da cotação;
+5. cria hosted checkout apenas depois dos gates.
 
 # HML canônico
 
@@ -76,37 +72,85 @@ Parcelamento maior só deve ser liberado após validar o comportamento real de c
 
 - projeto/ref: `heckakjcpwomoucobtau`;
 - região: `sa-east-1`;
-- migrations aplicadas: `0001–0024`;
-- `diretoria-member-api`: **ACTIVE v3**;
+- migrations: `0001–0024`;
+- `diretoria-member-api`: **ACTIVE v5**;
 - `diretoria-asaas-webhook`: **ACTIVE v1**;
+- banco: **connected**, validado ao vivo;
 - `diretoria-admin-api`: ACTIVE;
 - `diretoria-admin-write-api`: ACTIVE;
 - `diretoria-public-api`: ACTIVE;
 - `diretoria-crm-api`: ACTIVE;
 - `diretoria-pre-ad-api`: ACTIVE.
 
-## Public HML
+O falso negativo anterior do health foi corrigido no PR #25. Se qualquer um dos três probes de banco falhar, o endpoint continua respondendo 503.
 
-- `https://diretoria-public-hml.vercel.app`;
-- `/`: reativação + waitlist + consent;
-- `/account.html`: autenticação + carteira;
-- `/club.html`: oferta Club HML.
+## Estado real dos secrets
 
-# Fluxo Asaas já implementado
+Prova ao vivo da Edge v5:
+
+```text
+database: connected
+checkoutProvider: asaas-sandbox-unconfigured
+payments: disabled
+```
+
+Conclusão: `ASAAS_ACCESS_TOKEN` e/ou `ASAAS_WEBHOOK_AUTH_TOKEN` **ainda não estão disponíveis no runtime das Edge Functions HML**.
+
+As credenciais não devem ser enviadas em chat nem gravadas em repositório.
+
+# Evento HML preparado
+
+Edição exclusivamente sintética:
+
+- código: `HML-ASAAS-001`;
+- slug: `hml-asaas-sandbox`;
+- status: `QUORUM_EM_ANDAMENTO`;
+- preço-base: **R$ 150,00**;
+- custo variável por membro: **R$ 10,00**;
+- taxa fixa na config: **R$ 0,00**;
+- `fee_pass_through = true`;
+- custo protegido sintético: **R$ 280,00**.
+
+Consequência esperada:
+
+- crédito válido por pagamento: **R$ 150,00**;
+- contribuição protegida por crédito: **R$ 140,00**;
+- 1 crédito: ainda abaixo do custo protegido;
+- 2 créditos: R$ 280,00 protegidos, permitindo validar a mudança de viabilidade pelo núcleo econômico;
+- refund/chargeback retira a contribuição e recalcula quórum.
+
+Nenhum `VIAVEL` ou `CONFIRMADO` foi forçado.
+
+# Estado do banco financeiro
+
+Checkpoint atual:
+
+- eventos: **1**;
+- `policy_documents`: **0**;
+- `policy_acceptances`: **0**;
+- `checkout_intents`: **0**;
+- `payments`: **0**;
+- `payment_webhook_receipts`: **0**;
+- `credits`: **0**.
+
+Portanto nenhum pagamento ou crédito foi criado nesta preparação.
+
+# Fluxo Asaas implementado
 
 ```text
 conta autenticada
    ↓
 checkout_intent DRAFT
    ↓
-consulta taxa real da conta Asaas
+consulta taxa efetiva da conta Asaas
    ↓
 freeze quote
 base + taxa repassada = total cliente
    ↓
-políticas vigentes aceitas?
-   ↓ NÃO → BLOQUEIA
-   ↓ SIM
+políticas vigentes carregadas
+   ↓
+aceite do fingerprint vigente
+   ↓
 hosted checkout Asaas
    ↓
 payment interno PENDING
@@ -124,121 +168,119 @@ quórum recalculado
 
 ## Timeout / incerteza na criação
 
-`POST /v3/checkouts` **não recebe retry automático cego**.
+`POST /v3/checkouts` não recebe retry automático cego.
 
-Se houver timeout, falha de rede ou resposta ambígua:
+Timeout, falha de rede ou resposta ambígua colocam a intenção em reconciliação obrigatória antes de qualquer nova criação.
 
-`checkout_intent.reconciliation_status = required`
+# Policy gate
 
-O sistema exige reconciliação antes de nova tentativa.
+Antes de `/start`, o backend exige versões ativas e aceitas para:
+
+- `club_terms`;
+- `non_achievement_policy`.
+
+Contexto:
+
+`club_checkout`
+
+A API v5 expõe:
+
+- `GET /checkout-policies` — apenas bundle ativo atual;
+- `POST /checkout-policies/accept` — aceita apenas o fingerprint vigente e resolve IDs no servidor.
+
+Bundles desatualizados são rejeitados.
+
+**Não há conteúdo jurídico cadastrado.** Nenhum texto será inventado pelo código.
 
 # Webhook
 
-Edge:
+URL HML:
 
 `https://heckakjcpwomoucobtau.supabase.co/functions/v1/diretoria-asaas-webhook`
 
 Características:
 
-- `verify_jwt=false` por necessidade de integração externa;
-- autenticação customizada via `asaas-access-token`;
+- `verify_jwt=false` somente para permitir chamada externa do Asaas;
+- autenticação própria via `asaas-access-token`;
 - comparação constante do token;
 - raw body preservado para hash;
-- eventos idempotentes por ID do Asaas;
-- um `payment` por checkout intent;
+- idempotência por evento;
+- um payment por checkout intent;
 - um crédito por payment;
-- gateway payment ID não pode trocar silenciosamente;
-- refund/chargeback removem o crédito válido e recalculam quórum;
-- `paid` tardio após refund não ressuscita crédito automaticamente.
+- gateway payment ID não troca silenciosamente;
+- refund/chargeback invalidam crédito e recalculam quórum;
+- paid tardio após refund não ressuscita crédito automaticamente.
 
-# Evidência de teste do lifecycle
+# Public HML
 
-Cenário sintético validado em PostgreSQL 18.6:
+URL:
 
-- preço-base: **R$ 150,00**;
-- taxa repassada: **R$ 5,13**;
-- total cliente: **R$ 155,13**;
-- custo variável: **R$ 10,00**;
-- crédito bruto: **R$ 150,00**;
-- capital protegido: **R$ 140,00**;
-- taxa não entra no crédito;
-- replay não duplica crédito;
-- segundo evento de confirmação não duplica crédito;
-- refund invalida crédito;
-- capital protegido válido volta a zero;
-- evento paid tardio após refund é bloqueado.
+`https://diretoria-public-hml.vercel.app`
 
-No head final do PR #21 todos os 10 pipelines ficaram verdes, incluindo `asaas-orchestrator`, CI completo, Club, member-auth, policies, notifications, aquisição e CRM.
+A nova UX de `/club.html` está mergeada na `main` pelo PR #24 e contém:
 
-No head final do PR #22 ficaram verdes:
+- método Pix/cartão 1x;
+- cotação da taxa;
+- breakdown preço-base/taxa/total;
+- leitura das políticas vigentes;
+- aceite;
+- início do hosted checkout;
+- retorno explicitamente não autoritativo.
 
-- `asaas-edge-hml`;
-- `club-checkout`;
-- `member-auth`;
-- `public-leads`;
-- `pre-ad-gate`;
-- `crm-read`;
-- `ci` completo com backup/restore.
+**Porém o domínio público ainda serve a versão anterior da UI.** A validação ao vivo confirmou isso.
 
-# Estado de segurança atual
+O projeto público Vercel não está Git-linked e a operação de deploy disponível não permite selecionar explicitamente o project ID. Não fazer deploy ambíguo.
 
-As Edge Functions Asaas foram publicadas **sem secrets no repositório**.
+# Evidência dos pipelines
 
-Enquanto não existirem no Supabase HML:
+PR #24: pipelines relevantes verdes, incluindo `asaas-edge-hml`, `club-checkout`, `member-auth`, `pre-ad-gate`, `public-leads`, `crm-read` e CI.
 
-- `ASAAS_ACCESS_TOKEN`;
-- `ASAAS_WEBHOOK_AUTH_TOKEN`;
+PR #25: os mesmos 7 pipelines concluíram com sucesso antes do merge.
 
-as chamadas de pagamento falham fechado.
+# Bloqueios imediatos para o primeiro Pix Sandbox
 
-Nenhuma credencial Asaas deve ser colada em chat, código, issue, commit ou relatório.
+1. cadastrar no Supabase HML, pelo painel seguro, sem expor valores:
+   - `ASAAS_ACCESS_TOKEN`;
+   - `ASAAS_WEBHOOK_AUTH_TOKEN`;
+2. configurar no Asaas Sandbox o webhook da Diretoria usando o mesmo auth token;
+3. cadastrar e ativar textos aprovados de `club_terms` e `non_achievement_policy`;
+4. publicar `apps/public-hml` no projeto correto `diretoria-public-hml` por mecanismo explicitamente direcionado;
+5. autenticar usuário HML e executar Pix Sandbox.
 
-# Policy gate
+# Sequência após os gates
 
-Antes de iniciar checkout, o backend exige versões ativas e aceitas para:
+```text
+Pix Sandbox
+→ webhook
+→ paid
+→ crédito R$ 150
+→ quórum R$ 140 protegido
+→ replay
+→ refund
+→ reversão do crédito/quórum
+→ segundo ciclo para validar 2 créditos
+→ cartão 1x
+→ falhas/reconciliação
+```
 
-- `club_terms`;
-- `non_achievement_policy`.
+# Antes de PRODUÇÃO
 
-Contexto de aceite:
-
-`club_checkout`
-
-As tabelas estão prontas, mas **o conteúdo jurídico real não deve ser inventado pelo código**.
-
-# O que falta para o primeiro pagamento SANDBOX
-
-1. criar/usar conta Sandbox Asaas;
-2. gerar API key Sandbox;
-3. gerar token forte exclusivo do webhook;
-4. cadastrar ambos como secrets no Supabase HML;
-5. configurar no Asaas Sandbox o webhook da Diretoria com o mesmo token;
-6. cadastrar políticas de teste/aprovadas e ativá-las;
-7. registrar aceite de um usuário HML;
-8. atualizar `/club.html` para a UX final `escolher método → cotar taxa → mostrar base/taxa/total → iniciar hosted checkout`;
-9. executar pagamento Pix Sandbox;
-10. validar webhook → payment → crédito → quórum;
-11. repetir com cartão 1x;
-12. testar webhook duplicado, timeout, refund e evento fora de ordem.
-
-# O que falta antes de PRODUÇÃO
-
-- credencial Asaas de produção separada do Sandbox;
-- confirmar taxas efetivas da conta de produção;
+- credencial Asaas de produção totalmente separada;
+- validar taxas efetivas da conta de produção;
 - políticas jurídicas/comerciais finais;
-- regra final de reembolso/rollover, incluindo tratamento da taxa do Asaas que não seja devolvida pelo provedor;
+- regra definitiva de reembolso/rollover e tratamento de taxa não devolvida;
 - preço fundador definitivo;
-- testes completos de Sandbox;
-- observabilidade/alertas do webhook e reconciliação;
+- testes completos no Sandbox;
+- observabilidade/alertas de webhook e reconciliação;
 - revisão de segurança;
-- nenhuma promoção automática de secrets HML para produção.
+- nenhuma promoção automática de secret HML.
 
 # Progresso macro
 
 - Incremento 0 — Fundação: **concluído**;
 - Incremento 1 — Núcleo econômico: **concluído**;
 - Incremento 2 — Reativação/aquisição técnico: **concluído**;
-- Incremento 3 — Club/pagamento: **Asaas escolhido e infraestrutura/lifecycle HML implementados; falta configurar Sandbox e validar pagamentos reais de teste**;
+- Incremento 3 — Club/pagamento: **backend Asaas HML completo; primeiro pagamento depende dos três gates operacionais acima**;
 - Incremento 4 — Confirmação/venda pública/ticketing: **não iniciado como slice completo**;
 - Incremento 5 — Produção/financeiro: **não iniciado**;
 - Incremento 6 — Event Day: **não iniciado**;
